@@ -21,12 +21,17 @@ namespace SpacesDUpload {
       CUpdateChecker(sender, e);
     }
 
-    private void FormApp_Load(object sender, EventArgs e) {
+    private void FormApp_Shown(object sender, EventArgs e) {
       CGUIInit();
+    }
+
+    private void LabelAuthor_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
+      Process.Start(App.AUTHOR_URL);
     }
 
     // GUI
     public void CGUIInit() {
+      VGUIInit();
       VUpdateText();
     }
 
@@ -51,7 +56,6 @@ namespace SpacesDUpload {
         VShowMessage(Error.ERROR_COMMON, Error.Message);
       } else {
         VShowMessage("Проверка обновлений", up.CompareVersions(App.VERSION));
-        Process.Start(SpacesDUpload.Updater.UPDATE_LINK);      
       }
 
       VUpdateText(up.LastVersion);
@@ -63,11 +67,107 @@ namespace SpacesDUpload {
       MessageBox.Show(message, caption);
     }
 
+    private void VGUIInit() {
+      FormApp.ActiveForm.Text = App.NAME;
 
+      AppTabControl.TabPages.Remove(AppTabPageUploader);
+    }
+
+    private void ButtonAuth_Click(object sender, EventArgs e) {
+      CAuth(sender, e);
+    }
+
+    private void CAuth(object sender, EventArgs e) {
+      FormModal d = new FormModal("Авторизация", "Введите SID сессии:");
+
+      if (d.ShowDialog() == DialogResult.OK) {
+        App.session = new Session(d.InputText.Trim());
+        if (App.session.Vaid) {
+          VAuthOK();
+          VShowMessage("Результат", "Пользователь: " + App.session.UserID);          
+        } else VShowMessage("Ошибка", "Невалидный sid");
+      }
+    }
+
+    private void VAuthOK() {
+      AppTabControl.TabPages.Remove(AppTabPageAuth);
+      AppTabControl.TabPages.Insert(0, AppTabPageUploader);
+      AppTabControl.SelectedIndex = 0;
+    }
   }
 
   public static class App {
-    public const int VERSION = 1;    
+    // Const
+    public static readonly string NAME = "Spaces.D.Uploader";
+    public static readonly string AUTHOR = "DJ_miXxXer";
+    public static readonly string AUTHOR_URL = "http://spaces.ru/mysite/?name=DJ_miXxXer";
+
+    public const int VERSION = 2;
+    public static readonly string UA = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:37.0) Gecko/20100101 Firefox/37.0 MixxerUploader/0." + VERSION;
+
+    public static Session session;
+  }
+
+
+  public class Session {
+    private string sid;
+    public string SID {
+      get {
+        return sid;
+      }
+    }
+
+    private string userID;
+    public string UserID {
+      get {
+        return userID;
+      }
+    }
+
+    private bool valid;
+    public bool Vaid {
+      get {
+        return valid;
+      }
+    }
+
+    private void _ResetSessionData() {
+      sid = "";
+      userID = "";
+      valid = false;      
+    }
+
+
+    private bool _CheckInputSID(string sid) {
+      int trashVar = 0;
+      if (sid.Length != 16 || int.TryParse(sid, out trashVar)) return false;
+      return true;
+    }
+
+    public Session(string sid) {
+      _ResetSessionData();
+
+      Error.Reset();
+
+      if (_CheckInputSID(sid)) {
+        this.sid = sid;
+
+        try {
+          Networker net = new Networker(App.UA);
+          net.Create("http://spaces.ru/settings/?sid=" + sid);
+          net.Execute();
+
+          string temp = net.GetCookieValueByName("user_id");
+          if (temp != "") {
+            userID = temp;
+            valid = true;
+          }
+
+        } catch (Exception e) {
+          Error.SetError(Error.Codes.TRY_COMMON_FAIL, "E: " + e.Message);
+        }
+      }
+    }
   }
 
   public static class Error {
@@ -124,6 +224,46 @@ namespace SpacesDUpload {
     }
   }
 
+
+  public class Networker {
+    private HttpWebRequest request;
+    private string useragent;
+    private CookieContainer cookies;
+    
+    private string answer;
+    public string Answer {
+      get {
+        return answer;
+      }
+    }
+
+    public Networker(string useragent) {
+      this.useragent = useragent;
+
+      cookies = new CookieContainer();
+    }
+     
+    public void Create(string url) {
+      request = (HttpWebRequest)WebRequest.Create(url);
+      request.UserAgent = useragent;
+      request.CookieContainer = cookies;
+    }
+
+    public void Execute() {
+      using (var answer = new StreamReader(request.GetResponse().GetResponseStream())) {
+        this.answer = answer.ReadToEnd();
+      }
+    }
+
+    public string GetCookieValueByName(string name) {
+      foreach (Cookie c in cookies.GetCookies(new Uri("http://" + request.Host))) {
+        if (c.Name == name) return c.Value;
+      }
+      
+      return "";
+    }
+  }
+
   public class Updater {
     private int lastVersion = 0;
     public int LastVersion { 
@@ -160,5 +300,6 @@ namespace SpacesDUpload {
       }
       return "Обновление не треубется";
     }
-  }
+  }  
 }
+

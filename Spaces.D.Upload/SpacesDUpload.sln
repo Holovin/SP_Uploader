@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spaces.D.Upload", "Spaces.D.Upload\Spaces.D.Upload.csproj", "{B510EB10-C17E-48E2-8D7A-BDDEF4D68EDD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpacesDUpload", "Spaces.D.Upload\SpacesDUpload.csproj", "{B510EB10-C17E-48E2-8D7A-BDDEF4D68EDD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

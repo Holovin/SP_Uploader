@@ -24,18 +24,23 @@
     /// </summary>
     private void InitializeComponent() {
       this.AppTabControl = new System.Windows.Forms.TabControl();
-      this.AppTabPage1 = new System.Windows.Forms.TabPage();
+      this.AppTabPageAuth = new System.Windows.Forms.TabPage();
+      this.ButtonAuth = new System.Windows.Forms.Button();
+      this.AppTabPageUploader = new System.Windows.Forms.TabPage();
       this.AppTabPageAbout = new System.Windows.Forms.TabPage();
+      this.LabelAuthor = new System.Windows.Forms.LinkLabel();
       this.LabelVersion = new System.Windows.Forms.Label();
       this.ButtonUpdateCheck = new System.Windows.Forms.Button();
       this.LabelAbout = new System.Windows.Forms.Label();
       this.AppTabControl.SuspendLayout();
+      this.AppTabPageAuth.SuspendLayout();
       this.AppTabPageAbout.SuspendLayout();
       this.SuspendLayout();
       // 
       // AppTabControl
       // 
-      this.AppTabControl.Controls.Add(this.AppTabPage1);
+      this.AppTabControl.Controls.Add(this.AppTabPageAuth);
+      this.AppTabControl.Controls.Add(this.AppTabPageUploader);
       this.AppTabControl.Controls.Add(this.AppTabPageAbout);
       this.AppTabControl.Location = new System.Drawing.Point(12, 12);
       this.AppTabControl.Name = "AppTabControl";
@@ -43,18 +48,39 @@
       this.AppTabControl.Size = new System.Drawing.Size(660, 338);
       this.AppTabControl.TabIndex = 0;
       // 
-      // AppTabPage1
+      // AppTabPageAuth
       // 
-      this.AppTabPage1.Location = new System.Drawing.Point(4, 22);
-      this.AppTabPage1.Name = "AppTabPage1";
-      this.AppTabPage1.Padding = new System.Windows.Forms.Padding(3);
-      this.AppTabPage1.Size = new System.Drawing.Size(652, 312);
-      this.AppTabPage1.TabIndex = 0;
-      this.AppTabPage1.Text = "tabPage1";
-      this.AppTabPage1.UseVisualStyleBackColor = true;
+      this.AppTabPageAuth.Controls.Add(this.ButtonAuth);
+      this.AppTabPageAuth.Location = new System.Drawing.Point(4, 22);
+      this.AppTabPageAuth.Name = "AppTabPageAuth";
+      this.AppTabPageAuth.Padding = new System.Windows.Forms.Padding(3);
+      this.AppTabPageAuth.Size = new System.Drawing.Size(652, 312);
+      this.AppTabPageAuth.TabIndex = 0;
+      this.AppTabPageAuth.Text = "Авторизация";
+      this.AppTabPageAuth.UseVisualStyleBackColor = true;
+      // 
+      // ButtonAuth
+      // 
+      this.ButtonAuth.Location = new System.Drawing.Point(17, 16);
+      this.ButtonAuth.Name = "ButtonAuth";
+      this.ButtonAuth.Size = new System.Drawing.Size(99, 38);
+      this.ButtonAuth.TabIndex = 0;
+      this.ButtonAuth.Text = "Войти";
+      this.ButtonAuth.UseVisualStyleBackColor = true;
+      this.ButtonAuth.Click += new System.EventHandler(this.ButtonAuth_Click);
+      // 
+      // AppTabPageUploader
+      // 
+      this.AppTabPageUploader.Location = new System.Drawing.Point(4, 22);
+      this.AppTabPageUploader.Name = "AppTabPageUploader";
+      this.AppTabPageUploader.Size = new System.Drawing.Size(652, 312);
+      this.AppTabPageUploader.TabIndex = 2;
+      this.AppTabPageUploader.Text = "Загрузка файлов";
+      this.AppTabPageUploader.UseVisualStyleBackColor = true;
       // 
       // AppTabPageAbout
       // 
+      this.AppTabPageAbout.Controls.Add(this.LabelAuthor);
       this.AppTabPageAbout.Controls.Add(this.LabelVersion);
       this.AppTabPageAbout.Controls.Add(this.ButtonUpdateCheck);
       this.AppTabPageAbout.Controls.Add(this.LabelAbout);
@@ -65,6 +91,16 @@
       this.AppTabPageAbout.TabIndex = 1;
       this.AppTabPageAbout.Text = "О программе";
       this.AppTabPageAbout.UseVisualStyleBackColor = true;
+      // 
+      // LabelAuthor
+      // 
+      this.LabelAuthor.Location = new System.Drawing.Point(10, 43);
+      this.LabelAuthor.Name = "LabelAuthor";
+      this.LabelAuthor.Size = new System.Drawing.Size(171, 23);
+      this.LabelAuthor.TabIndex = 3;
+      this.LabelAuthor.TabStop = true;
+      this.LabelAuthor.Text = "by DJ_miXxXer";
+      this.LabelAuthor.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.LabelAuthor_LinkClicked);
       // 
       // LabelVersion
       // 
@@ -104,8 +140,9 @@
       this.Name = "FormApp";
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
       this.Text = "Spaces.D.Uploader";
-      this.Load += new System.EventHandler(this.FormApp_Load);
+      this.Shown += new System.EventHandler(this.FormApp_Shown);
       this.AppTabControl.ResumeLayout(false);
+      this.AppTabPageAuth.ResumeLayout(false);
       this.AppTabPageAbout.ResumeLayout(false);
       this.ResumeLayout(false);
 
@@ -114,11 +151,14 @@
     #endregion
 
     private System.Windows.Forms.TabControl AppTabControl;
-    private System.Windows.Forms.TabPage AppTabPage1;
+    private System.Windows.Forms.TabPage AppTabPageAuth;
     private System.Windows.Forms.TabPage AppTabPageAbout;
     private System.Windows.Forms.Label LabelAbout;
     private System.Windows.Forms.Button ButtonUpdateCheck;
     private System.Windows.Forms.Label LabelVersion;
+    private System.Windows.Forms.LinkLabel LabelAuthor;
+    private System.Windows.Forms.Button ButtonAuth;
+    private System.Windows.Forms.TabPage AppTabPageUploader;
   }
 }
 
