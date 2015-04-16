@@ -43,6 +43,9 @@ namespace SpacesDUpload {
 
     // GUI
     private void CGUIInit() {
+      App.net = new Networker(App.UA);
+      App.api = new MixxerAPI(ref App.net);
+
       VGUIInit();
       VUpdateText();
     }
@@ -150,7 +153,8 @@ namespace SpacesDUpload {
     }
 
     private void VGUIInit() {
-      FormApp.ActiveForm.Text = App.NAME;
+      this.Text = App.NAME;
+      this.LabelAbout.Text = App.NAME;
 
       //[DEBUG]
       //AppTabControl.TabPages.Remove(AppTabPageUploader);      
@@ -175,10 +179,18 @@ namespace SpacesDUpload {
       FormModal d = new FormModal("Авторизация", "Введите SID сессии:");
 
       if (d.ShowDialog() == DialogResult.OK) {
-        App.session = new Session(d.InputText.Trim());
+        App.session = new Session(ref App.net, d.InputText.Trim());
         if (App.session.Vaid) {
-          VAuthOK();
-          VShowMessage("Результат", "Пользователь: " + App.session.UserID);          
+          MixxerAPI m = new MixxerAPI(ref App.net);
+          m.GetUserNameById(App.session.UserID);
+          //VAuthOK();
+
+          List<KeyValuePair<string,string>> list = new List<KeyValuePair<string, string>>();
+          list.Add(new KeyValuePair<string,string>("0", "нажми"));
+
+          VUploadDirsSet(list);
+
+          VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
         } else VShowMessage("Ошибка", "Невалидный sid");
       }
 
@@ -189,12 +201,44 @@ namespace SpacesDUpload {
       AppTabControl.TabPages.Remove(AppTabPageAuth);
       AppTabControl.TabPages.Insert(0, AppTabPageUploader);
       AppTabControl.SelectedIndex = 0;
-    }    
+    }
+
+    private void VUploadDirsSet(List<KeyValuePair<string, string>> dict) {
+      ListViewDirs.Items.Clear();
+
+      foreach (KeyValuePair<string, string> item in dict) {
+        ListViewDirs.Items.Add(new ListViewItem(new string[] { item.Key, item.Value }));
+      }
+    }
+
+    private void button1_Click(object sender, EventArgs e) {
+      FormModal x = new FormModal("1", "1");
+
+      x.ShowDialog();
+
+      Match backLink = Regex.Match(x.InputText, @"Dir=(\d+).+?>(.+?)<.a>");
+
+      MessageBox.Show(backLink.Groups[1] + " - " + backLink.Groups[2]);
+
+    }
+  
+    private void ListViewDirs_MouseDoubleClick(object sender, MouseEventArgs e) {
+      CChangeFileDir(sender, e);      
+    }
+
+    private void CChangeFileDir(object sender, MouseEventArgs e) {
+      List<KeyValuePair<string, string>> dict = App.api.GetMusicDirs(App.session.UserName, ListViewDirs.SelectedItems[0].Text);
+
+      dict.Insert(0, new KeyValuePair<string, string>("0", "< корневая папка >"));
+
+      VUploadDirsSet(dict);
+    }
+
   }
 
   public static class App {
     // Const
-    public static readonly string NAME = "Spaces.D.Uploader";
+    public static readonly string NAME = "Spaces.D.MusicUploader";
     public static readonly string AUTHOR = "DJ_miXxXer";
     public static readonly string AUTHOR_URL = "http://spaces.ru/mysite/?name=DJ_miXxXer";
 
@@ -202,14 +246,71 @@ namespace SpacesDUpload {
     public static readonly string UA = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:37.0) Gecko/20100101 Firefox/37.0 MixxerUploader/0." + VERSION;
 
     public static Session session;
+    public static Networker net;
+    public static MixxerAPI api;
   }
 
+  public class MixxerAPI {
+    private Networker net;
+
+    public MixxerAPI(ref Networker net) {
+      this.net = net;
+    }
+
+    public string GetUserNameById(string id) {
+      net.Create("http://" + id + ".spaces.ru/");
+      net.ExecuteGET();
+      return net.GetValueByParam("name");
+    }
+
+    public List<KeyValuePair<string, string>> GetMusicDirs(string userName, string dirId) {
+      List<KeyValuePair<string, string>> dict = new List<KeyValuePair<string, string>>();
+
+      if (dirId == "0") net.Create("http://spaces.ru/music/?r=main/index&name=" + userName);
+      else net.Create("http://spaces.ru/music/?Dir=" + dirId);
+      net.ExecuteGET();
+
+      MatchCollection m = Regex.Matches(net.Answer, @"<a.*?</a>");
+
+      foreach (Match item in m) {
+        Match temp = Regex.Match(item.Value, @"Dir=(\d*).+?hover" + '"' + ">(.*?)</span>");
+
+        if (temp.Groups.Count == 3 && temp.Groups[1].Value != "") {
+          dict.Add(new KeyValuePair<string, string>(temp.Groups[1].Value, temp.Groups[2].Value));
+        } else {
+          Error.SetError(Error.Codes.WRONG_PARSE_DATA, "Real size incorrect: " + temp.Groups.Count);
+        }
+      }
+     
+      Match nav = Regex.Match(net.Answer, @"<div class=" + '"' +
+                             "location-bar" + '"' + ".*?<a.+?</a>.+?</div>");
+
+      if (nav.Length > 0) {
+        MatchCollection navCounter = Regex.Matches(nav.Value, "<*.a>");
+
+        if (navCounter.Count > 3) {
+          Debug.WriteLine(nav.Value);
+          Match backLink = Regex.Match(nav.Value, @".+Dir=(\d+).+?>(.+?)<.a>");
+          if (backLink.Length > 0) dict.Insert(0, new KeyValuePair<string, string>(backLink.Groups[1].Value, "[вверх на уровень] " + backLink.Groups[2].Value));
+        }
+      }
+     
+      return dict;     
+    }
+  }
 
   public class Session {
     private string sid;
     public string SID {
       get {
         return sid;
+      }
+    }
+
+    private string userName;
+    public string UserName {
+      get {
+        return userName;
       }
     }
 
@@ -230,6 +331,7 @@ namespace SpacesDUpload {
     private void _ResetSessionData() {
       sid = "";
       userID = "";
+      userName = "";
       valid = false;      
     }
 
@@ -240,7 +342,7 @@ namespace SpacesDUpload {
       return true;
     }
 
-    public Session(string sid) {
+    public Session(ref Networker net, string sid) {
       _ResetSessionData();
 
       Error.Reset();
@@ -249,14 +351,16 @@ namespace SpacesDUpload {
         this.sid = sid;
 
         try {
-          Networker net = new Networker(App.UA);
           net.Create("http://spaces.ru/settings/?sid=" + sid);
-          net.Execute();
+          net.ExecuteGET();
 
           string temp = net.GetCookieValueByName("user_id");
           if (temp != "") {
             userID = temp;
             valid = true;
+
+             MixxerAPI api = new MixxerAPI(ref net);
+             userName = api.GetUserNameById(UserID);
           }
 
         } catch (Exception e) {
@@ -333,6 +437,28 @@ namespace SpacesDUpload {
       }
     }
 
+    public string AnswerDecoded {
+      get {
+        return WebUtility.HtmlDecode(answer);
+      }
+    }
+
+    public string GetValueByParam(string name) {
+      string url = request.Address.Query.Substring(1);
+
+      string []param = url.Split('&');
+
+      foreach (string item in param) {
+        if (item.Length < 1) continue;
+
+        string []temp = item.Split('=');
+
+        if (temp[0] == name) return temp[1];
+	    }
+
+      return "";
+    }
+
     public Networker(string useragent) {
       this.useragent = useragent;
 
@@ -343,9 +469,10 @@ namespace SpacesDUpload {
       request = (HttpWebRequest)WebRequest.Create(url);
       request.UserAgent = useragent;
       request.CookieContainer = cookies;
+      request.AllowAutoRedirect = true;
     }
 
-    public void Execute() {
+    public void ExecuteGET() {
       using (var answer = new StreamReader(request.GetResponse().GetResponseStream())) {
         this.answer = answer.ReadToEnd();
       }
