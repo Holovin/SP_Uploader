@@ -27,13 +27,21 @@
       this.AppTabPageAuth = new System.Windows.Forms.TabPage();
       this.ButtonAuth = new System.Windows.Forms.Button();
       this.AppTabPageUploader = new System.Windows.Forms.TabPage();
+      this.GroupBoxFiles = new System.Windows.Forms.GroupBox();
+      this.LabelFilesInfo = new System.Windows.Forms.Label();
+      this.ButtonAddDirectory = new System.Windows.Forms.Button();
+      this.ButtonAddFiles = new System.Windows.Forms.Button();
+      this.ListBoxFiles = new System.Windows.Forms.ListBox();
       this.AppTabPageAbout = new System.Windows.Forms.TabPage();
       this.LabelAuthor = new System.Windows.Forms.LinkLabel();
       this.LabelVersion = new System.Windows.Forms.Label();
       this.ButtonUpdateCheck = new System.Windows.Forms.Button();
       this.LabelAbout = new System.Windows.Forms.Label();
+      this.ButtonFilesClear = new System.Windows.Forms.Button();
       this.AppTabControl.SuspendLayout();
       this.AppTabPageAuth.SuspendLayout();
+      this.AppTabPageUploader.SuspendLayout();
+      this.GroupBoxFiles.SuspendLayout();
       this.AppTabPageAbout.SuspendLayout();
       this.SuspendLayout();
       // 
@@ -71,12 +79,63 @@
       // 
       // AppTabPageUploader
       // 
+      this.AppTabPageUploader.Controls.Add(this.GroupBoxFiles);
       this.AppTabPageUploader.Location = new System.Drawing.Point(4, 22);
       this.AppTabPageUploader.Name = "AppTabPageUploader";
       this.AppTabPageUploader.Size = new System.Drawing.Size(652, 312);
       this.AppTabPageUploader.TabIndex = 2;
       this.AppTabPageUploader.Text = "Загрузка файлов";
       this.AppTabPageUploader.UseVisualStyleBackColor = true;
+      // 
+      // GroupBoxFiles
+      // 
+      this.GroupBoxFiles.Controls.Add(this.ButtonFilesClear);
+      this.GroupBoxFiles.Controls.Add(this.LabelFilesInfo);
+      this.GroupBoxFiles.Controls.Add(this.ButtonAddDirectory);
+      this.GroupBoxFiles.Controls.Add(this.ButtonAddFiles);
+      this.GroupBoxFiles.Controls.Add(this.ListBoxFiles);
+      this.GroupBoxFiles.Location = new System.Drawing.Point(3, 3);
+      this.GroupBoxFiles.Name = "GroupBoxFiles";
+      this.GroupBoxFiles.Size = new System.Drawing.Size(387, 306);
+      this.GroupBoxFiles.TabIndex = 0;
+      this.GroupBoxFiles.TabStop = false;
+      this.GroupBoxFiles.Text = "Файлы";
+      // 
+      // LabelFilesInfo
+      // 
+      this.LabelFilesInfo.Location = new System.Drawing.Point(7, 225);
+      this.LabelFilesInfo.Name = "LabelFilesInfo";
+      this.LabelFilesInfo.Size = new System.Drawing.Size(374, 20);
+      this.LabelFilesInfo.TabIndex = 3;
+      this.LabelFilesInfo.Text = "Файлов: 0 | Общий размер: 0 МБ";
+      // 
+      // ButtonAddDirectory
+      // 
+      this.ButtonAddDirectory.Location = new System.Drawing.Point(126, 248);
+      this.ButtonAddDirectory.Name = "ButtonAddDirectory";
+      this.ButtonAddDirectory.Size = new System.Drawing.Size(114, 23);
+      this.ButtonAddDirectory.TabIndex = 2;
+      this.ButtonAddDirectory.Text = "Добавить папку";
+      this.ButtonAddDirectory.UseVisualStyleBackColor = true;
+      this.ButtonAddDirectory.Click += new System.EventHandler(this.ButtonAddDirectory_Click);
+      // 
+      // ButtonAddFiles
+      // 
+      this.ButtonAddFiles.Location = new System.Drawing.Point(6, 248);
+      this.ButtonAddFiles.Name = "ButtonAddFiles";
+      this.ButtonAddFiles.Size = new System.Drawing.Size(114, 23);
+      this.ButtonAddFiles.TabIndex = 1;
+      this.ButtonAddFiles.Text = "Добавить файлы";
+      this.ButtonAddFiles.UseVisualStyleBackColor = true;
+      this.ButtonAddFiles.Click += new System.EventHandler(this.ButtonAddFiles_Click);
+      // 
+      // ListBoxFiles
+      // 
+      this.ListBoxFiles.FormattingEnabled = true;
+      this.ListBoxFiles.Location = new System.Drawing.Point(6, 19);
+      this.ListBoxFiles.Name = "ListBoxFiles";
+      this.ListBoxFiles.Size = new System.Drawing.Size(375, 199);
+      this.ListBoxFiles.TabIndex = 0;
       // 
       // AppTabPageAbout
       // 
@@ -129,6 +188,16 @@
       this.LabelAbout.TabIndex = 0;
       this.LabelAbout.Text = "Spaces.D.Uploader";
       // 
+      // ButtonFilesClear
+      // 
+      this.ButtonFilesClear.Location = new System.Drawing.Point(6, 277);
+      this.ButtonFilesClear.Name = "ButtonFilesClear";
+      this.ButtonFilesClear.Size = new System.Drawing.Size(114, 23);
+      this.ButtonFilesClear.TabIndex = 4;
+      this.ButtonFilesClear.Text = "Очистить список";
+      this.ButtonFilesClear.UseVisualStyleBackColor = true;
+      this.ButtonFilesClear.Click += new System.EventHandler(this.ButtonFilesClear_Click);
+      // 
       // FormApp
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -143,6 +212,8 @@
       this.Shown += new System.EventHandler(this.FormApp_Shown);
       this.AppTabControl.ResumeLayout(false);
       this.AppTabPageAuth.ResumeLayout(false);
+      this.AppTabPageUploader.ResumeLayout(false);
+      this.GroupBoxFiles.ResumeLayout(false);
       this.AppTabPageAbout.ResumeLayout(false);
       this.ResumeLayout(false);
 
@@ -159,6 +230,12 @@
     private System.Windows.Forms.LinkLabel LabelAuthor;
     private System.Windows.Forms.Button ButtonAuth;
     private System.Windows.Forms.TabPage AppTabPageUploader;
+    private System.Windows.Forms.GroupBox GroupBoxFiles;
+    private System.Windows.Forms.Button ButtonAddFiles;
+    private System.Windows.Forms.ListBox ListBoxFiles;
+    private System.Windows.Forms.Label LabelFilesInfo;
+    private System.Windows.Forms.Button ButtonAddDirectory;
+    private System.Windows.Forms.Button ButtonFilesClear;
   }
 }
 

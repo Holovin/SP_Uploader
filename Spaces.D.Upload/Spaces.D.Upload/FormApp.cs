@@ -29,13 +29,74 @@ namespace SpacesDUpload {
       Process.Start(App.AUTHOR_URL);
     }
 
+    private void ButtonAddFiles_Click(object sender, EventArgs e) {
+      CAddFiles(sender, e);
+    }
+
+    private void ButtonAddDirectory_Click(object sender, EventArgs e) {
+      CAddFilesFromDir(sender, e);
+    }
+
+    private void ButtonFilesClear_Click(object sender, EventArgs e) {
+      CClearFilesList(sender, e);
+    }
+
     // GUI
-    public void CGUIInit() {
+    private void CGUIInit() {
       VGUIInit();
       VUpdateText();
     }
 
-    public void VUpdateText(int newVersion = 0) {
+    private void CAddFiles(object sender, EventArgs e) {
+      VGUILock(); 
+      OpenFileDialog modal = new OpenFileDialog();
+
+      modal.AddExtension = true;
+      modal.CheckFileExists = true;
+      modal.CheckPathExists = true;
+      modal.DefaultExt = "mp3";
+      modal.Filter = "Музыкальные файлы | *.mp3";
+      modal.InitialDirectory = Directory.GetCurrentDirectory();
+      modal.Multiselect = true;
+      modal.Title = "Выберите файлы";
+
+      if (modal.ShowDialog() == DialogResult.OK) {
+        ListBoxFiles.Items.AddRange(modal.FileNames);
+        VUpdateFilesInfo();
+        VShowMessage("Файлы добавлены", "Добавлено файлов: " + modal.FileNames.GetLength(0));
+      }
+      VGUIUnlock();
+    }
+
+    private void CAddFilesFromDir(object sender, EventArgs e) {
+      VGUILock();
+      FolderBrowserDialog modal = new FolderBrowserDialog();
+
+      modal.Description = "Выберите папку с файлами";
+      modal.ShowNewFolderButton = false;
+      modal.RootFolder = Environment.SpecialFolder.MyComputer;
+
+      if (modal.ShowDialog() == DialogResult.OK) {
+        string[] files = Directory.GetFiles(modal.SelectedPath, "*.mp3", SearchOption.AllDirectories);
+        ListBoxFiles.Items.AddRange(files);
+        VUpdateFilesInfo();
+      }
+      VGUIUnlock();
+    }
+
+    private void VUpdateFilesInfo() {
+      float size = 0;
+
+      foreach (string item in ListBoxFiles.Items) {
+        FileInfo f = new FileInfo(item);
+        size += f.Length / (1024 * 1024);
+      }
+
+      LabelFilesInfo.Text = "Файлов: "+ ListBoxFiles.Items.Count +
+        " | Общий размер: " + size + " МБ";
+    }
+
+    private void VUpdateText(int newVersion = 0) {
       String temp = "Текущая версия: " + App.VERSION + '\n' + "Актуальная версия: ";
 
       if (newVersion != 0) temp += newVersion;
@@ -44,11 +105,28 @@ namespace SpacesDUpload {
       LabelVersion.Text = temp;
     }
 
-    public void CUpdateChecker(object sender, EventArgs e) {
+    private void CClearFilesList(object sender, EventArgs e) {
+      VGUILock();
+      VClearFilesList();
+      VUpdateFilesInfo();
+      VGUIUnlock();
+    }
+
+    private void VLockButton(object sender) {
       Button control = sender as Button;
       if (control == null) return;
-
       control.Enabled = false;
+    }
+
+    private void VUnlockButton(object sender) {
+      Button control = sender as Button;
+      if (control == null) return;
+      control.Enabled = true;
+    }
+
+    private void CUpdateChecker(object sender, EventArgs e) {
+      VGUILock();
+      VLockButton(sender);
 
       Updater up = new Updater();
 
@@ -59,18 +137,32 @@ namespace SpacesDUpload {
       }
 
       VUpdateText(up.LastVersion);
-
-      control.Enabled = true;
+      VUnlockButton(sender);
+      VGUIUnlock();
     }
 
-    public void VShowMessage(string caption, string message) {
+    private void VShowMessage(string caption, string message) {
       MessageBox.Show(message, caption);
+    }
+
+    private void VClearFilesList() {
+      ListBoxFiles.Items.Clear();
     }
 
     private void VGUIInit() {
       FormApp.ActiveForm.Text = App.NAME;
 
-      AppTabControl.TabPages.Remove(AppTabPageUploader);
+      //[DEBUG]
+      //AppTabControl.TabPages.Remove(AppTabPageUploader);      
+    }
+
+    private void VGUILock() {
+      this.Text += " [...]";
+      Application.DoEvents();
+    }
+
+    private void VGUIUnlock() {
+      this.Text = App.NAME;
     }
 
     private void ButtonAuth_Click(object sender, EventArgs e) {
@@ -78,6 +170,8 @@ namespace SpacesDUpload {
     }
 
     private void CAuth(object sender, EventArgs e) {
+      VGUILock();
+
       FormModal d = new FormModal("Авторизация", "Введите SID сессии:");
 
       if (d.ShowDialog() == DialogResult.OK) {
@@ -87,13 +181,15 @@ namespace SpacesDUpload {
           VShowMessage("Результат", "Пользователь: " + App.session.UserID);          
         } else VShowMessage("Ошибка", "Невалидный sid");
       }
+
+      VGUIUnlock();
     }
 
     private void VAuthOK() {
       AppTabControl.TabPages.Remove(AppTabPageAuth);
       AppTabControl.TabPages.Insert(0, AppTabPageUploader);
       AppTabControl.SelectedIndex = 0;
-    }
+    }    
   }
 
   public static class App {
