@@ -26,6 +26,7 @@
       this.AppTabControl = new System.Windows.Forms.TabControl();
       this.AppTabPageAuth = new System.Windows.Forms.TabPage();
       this.GroupBoxAuth = new System.Windows.Forms.GroupBox();
+      this.ButtonDebug = new System.Windows.Forms.Button();
       this.ButtonAuth = new System.Windows.Forms.Button();
       this.AppTabPageUploader = new System.Windows.Forms.TabPage();
       this.GroupBoxSpacDirs = new System.Windows.Forms.GroupBox();
@@ -42,6 +43,7 @@
       this.ListBoxFiles = new System.Windows.Forms.ListBox();
       this.AppTabPageProgress = new System.Windows.Forms.TabPage();
       this.GroupBoxProgress = new System.Windows.Forms.GroupBox();
+      this.TextBoxUploaderLog = new System.Windows.Forms.TextBox();
       this.LabelCurrentFile = new System.Windows.Forms.Label();
       this.progressBar1 = new System.Windows.Forms.ProgressBar();
       this.AppTabPageAbout = new System.Windows.Forms.TabPage();
@@ -51,7 +53,6 @@
       this.GroupBoxAbout = new System.Windows.Forms.GroupBox();
       this.LabelAuthor = new System.Windows.Forms.LinkLabel();
       this.LabelAbout = new System.Windows.Forms.Label();
-      this.TextBoxUploaderLog = new System.Windows.Forms.TextBox();
       this.AppTabControl.SuspendLayout();
       this.AppTabPageAuth.SuspendLayout();
       this.GroupBoxAuth.SuspendLayout();
@@ -90,6 +91,7 @@
       // 
       // GroupBoxAuth
       // 
+      this.GroupBoxAuth.Controls.Add(this.ButtonDebug);
       this.GroupBoxAuth.Controls.Add(this.ButtonAuth);
       this.GroupBoxAuth.Location = new System.Drawing.Point(6, 6);
       this.GroupBoxAuth.Name = "GroupBoxAuth";
@@ -97,6 +99,16 @@
       this.GroupBoxAuth.TabIndex = 1;
       this.GroupBoxAuth.TabStop = false;
       this.GroupBoxAuth.Text = "Авторизация";
+      // 
+      // ButtonDebug
+      // 
+      this.ButtonDebug.Location = new System.Drawing.Point(535, 252);
+      this.ButtonDebug.Name = "ButtonDebug";
+      this.ButtonDebug.Size = new System.Drawing.Size(99, 42);
+      this.ButtonDebug.TabIndex = 1;
+      this.ButtonDebug.Text = "[Debug]";
+      this.ButtonDebug.UseVisualStyleBackColor = true;
+      this.ButtonDebug.Click += new System.EventHandler(this.ButtonDebug_Click);
       // 
       // ButtonAuth
       // 
@@ -262,6 +274,15 @@
       this.GroupBoxProgress.TabIndex = 0;
       this.GroupBoxProgress.TabStop = false;
       // 
+      // TextBoxUploaderLog
+      // 
+      this.TextBoxUploaderLog.Location = new System.Drawing.Point(385, 10);
+      this.TextBoxUploaderLog.Multiline = true;
+      this.TextBoxUploaderLog.Name = "TextBoxUploaderLog";
+      this.TextBoxUploaderLog.Size = new System.Drawing.Size(249, 284);
+      this.TextBoxUploaderLog.TabIndex = 2;
+      this.TextBoxUploaderLog.Text = "Отчёт...";
+      // 
       // LabelCurrentFile
       // 
       this.LabelCurrentFile.Location = new System.Drawing.Point(17, 63);
@@ -348,15 +369,6 @@
       this.LabelAbout.TabIndex = 0;
       this.LabelAbout.Text = "Spaces.D.Uploader";
       // 
-      // TextBoxUploaderLog
-      // 
-      this.TextBoxUploaderLog.Location = new System.Drawing.Point(385, 10);
-      this.TextBoxUploaderLog.Multiline = true;
-      this.TextBoxUploaderLog.Name = "TextBoxUploaderLog";
-      this.TextBoxUploaderLog.Size = new System.Drawing.Size(249, 284);
-      this.TextBoxUploaderLog.TabIndex = 2;
-      this.TextBoxUploaderLog.Text = "Отчёт...";
-      // 
       // FormApp
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -368,6 +380,7 @@
       this.Name = "FormApp";
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
       this.Text = "Spaces.D.Uploader";
+      this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.FormApp_FormClosed);
       this.Shown += new System.EventHandler(this.FormApp_Shown);
       this.AppTabControl.ResumeLayout(false);
       this.AppTabPageAuth.ResumeLayout(false);
@@ -416,6 +429,7 @@
     private System.Windows.Forms.Label LabelCurrentFile;
     private System.Windows.Forms.ProgressBar progressBar1;
     private System.Windows.Forms.TextBox TextBoxUploaderLog;
+    private System.Windows.Forms.Button ButtonDebug;
   }
 }
 

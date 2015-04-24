@@ -11,9 +11,10 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Helpers;
 using System.Windows.Forms;
-using System.Runtime.Serialization.Json;
 using System.Xml;
 using System.Web.Script.Serialization;
+using System.Net.Http;
+using System.Reflection.Emit;
 
 namespace SpacesDUpload {
   public partial class FormApp: Form {
@@ -61,6 +62,7 @@ namespace SpacesDUpload {
     private void CGUIInit() {
       App.net = new Networker(App.UA);
       App.api = new MixxerAPI(ref App.net);
+      App.err = new Error();
 
       VGUIInit();
       VUpdateText();
@@ -165,8 +167,8 @@ namespace SpacesDUpload {
         up = new Updater();
       }, TaskCreationOptions.LongRunning);
     
-      if (Error.CheckIsError()) {
-        VShowMessage(Error.ERROR_COMMON, Error.Message);
+      if (App.err.CheckIsError()) {
+        CShowErrorIfNeeded();
       } else {
         VShowMessage("Проверка обновлений", up.CompareVersions(App.VERSION));
       }
@@ -193,6 +195,7 @@ namespace SpacesDUpload {
 
     private bool CLock() {
       if (App.BeginWork()) {
+        App.err.Reset();
         VLock();
         return true;
       }
@@ -218,10 +221,14 @@ namespace SpacesDUpload {
     public static class AppTh {
       public delegate void Run(string sid);
     }
-    
 
+    private void CShowErrorIfNeeded(string errMessage = "") {
+      if (App.err.CheckIsError()) {
+        VShowMessage("Ошибка приложения!", "Сообщение: " + App.err.Message + "\nLast: " + errMessage);
+      }
+    }
 
-    private void CAuth(object sender, EventArgs e) {
+    private async void CAuth(object sender, EventArgs e) {
       CLock();
       VLockControl(sender);
 
@@ -229,48 +236,34 @@ namespace SpacesDUpload {
 
       bool okFlag = false;
 
-      if (d.ShowDialog() == DialogResult.OK) {
-        App.session = new Session(ref App.net, d.InputText);
-        if (App.session.Vaid) {
-          okFlag = true;
+      if (d.ShowDialog() == DialogResult.OK) {      
+        await Task.Factory.StartNew(() => {
+          App.session = new Session(ref App.net, d.InputText);
+          if (App.session.Valid) {
+            okFlag = true;
+            MixxerAPI m = new MixxerAPI(ref App.net);
+          } 
+        }, TaskCreationOptions.LongRunning);
 
-          AppTh.Run a = TAuth;
-          IAsyncResult r = a.BeginInvoke(d.InputText, new AsyncCallback(VAuthOK), a);
+        if (okFlag) {
+          VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
+          List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
+          list.Add(new KeyValuePair<string, string>("0", "(кликни для загрузки)"));
+          VUploadDirsSet(list);
+          VTabAccessChange(AppTabPageAuth, false);
+          VTabAccessChange(AppTabPageUploader, true);
+          CUnlock();
         } else {
-          VShowMessage("Ошибка", "Невалидный sid");
+          CShowErrorIfNeeded();
         }
+      } else {          
+        VShowMessage("Ошибка", "Невалидный sid");
       }
-
-      if (okFlag == false) {
-        VUnlockControl(sender);
-        CUnlock();
-      }
+      
+      VUnlockControl(sender);
+      CUnlock();
     }
     
-    private void TAuth(string sid) {
-      MixxerAPI m = new MixxerAPI(ref App.net);
-      m.GetUserNameById(App.session.UserID);           
-    }
-
-    private void VAuthOK(IAsyncResult ar) {
-      if (ar == null) throw new Exception("");
-
-      AppTh.Run a = ar.AsyncState as AppTh.Run;
-      if (a == null) throw new Exception("");
-      a.EndInvoke(ar);
-    
-      this.Invoke((MethodInvoker)delegate {
-        VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
-
-        List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
-        list.Add(new KeyValuePair<string, string>("0", "(кликни для загрузки)"));
-        VUploadDirsSet(list);
-        VTabAccessChange(AppTabPageAuth, false);
-        VTabAccessChange(AppTabPageUploader, true);
-        CUnlock();
-      });
-    }
-
     private void VUploadDirsSet(List<KeyValuePair<string, string>> dict) {
       ListViewDirs.Items.Clear();
 
@@ -279,8 +272,6 @@ namespace SpacesDUpload {
       }
     }
   
-
-
     private void CChangeFileDir(object sender, MouseEventArgs e) {
       List<KeyValuePair<string, string>> dict = App.api.GetMusicDirs(App.session.UserName, ListViewDirs.SelectedItems[0].Text);
 
@@ -305,6 +296,24 @@ namespace SpacesDUpload {
       App.api.GetUploadUrl(App.session.SID);
     }
 
+    private void ButtonDebug_Click(object sender, EventArgs ev) {
+      try {
+        App.net.Get("http://spaces.ru");
+      } catch (Exception e) {
+        //
+      } finally {
+        CShowErrorIfNeeded("");
+      }
+    }
+
+    private void FormApp_FormClosed(object sender, FormClosedEventArgs e) {
+      CGUIClose(sender, e);
+    }
+
+    private void CGUIClose(object sender, FormClosedEventArgs e) {
+      App.net.Free();
+    }
+
   }
 
   public static class App {
@@ -319,6 +328,7 @@ namespace SpacesDUpload {
     public static Session session;
     public static Networker net;
     public static MixxerAPI api;
+    public static Error err;
 
     private static bool workFlag = false;
     public static bool BeginWork() {
@@ -336,7 +346,8 @@ namespace SpacesDUpload {
         return false;
       }
 
-      throw new Exception("Try end work, but work doesnt started");
+      Debug.WriteLine("[WARNING] Try end work, but work doesnt started");
+      return false;
     }
   }
 
@@ -348,17 +359,17 @@ namespace SpacesDUpload {
     }
 
     public string GetUserNameById(string id) {
-      net.Create("http://" + id + ".spaces.ru/");
-      net.ExecuteGET();
+      net.Get("http://" + id + ".spaces.ru/");
+
       return net.GetValueByParam("name");
     }
 
     // 6 - music
     public string GetUploadUrl(string sid, string type = "6") {
-      net.Create("http://spaces.ru/api/files/");
+      //net.Create("http://spaces.ru/api/files/");
 
-      net.PostAdd("method", "getUploadInfo");
-      net.PostAdd("Type", type);
+      //net.PostAdd("method", "getUploadInfo");
+      //net.PostAdd("Type", type);
 
       net.ExecutePOST();
 
@@ -368,7 +379,7 @@ namespace SpacesDUpload {
         var dict = new JavaScriptSerializer().Deserialize<Dictionary<string, dynamic>>(net.Answer.ToString());
         answer = (string)dict["url"];
       } catch (Exception e) {
-        Error.SetError(Error.Codes.WRONG_PARSE_DATA, "Empty url parse");
+        App.err.SetError(Error.Codes.WRONG_PARSE_DATA, "Empty url parse [" + e.Message + "]");
       }
       
       return answer;
@@ -377,8 +388,8 @@ namespace SpacesDUpload {
     public List<KeyValuePair<string, string>> GetMusicDirs(string userName, string dirId) {
       List<KeyValuePair<string, string>> dict = new List<KeyValuePair<string, string>>();
 
-      if (dirId == "0") net.Create("http://spaces.ru/music/?r=main/index&name=" + userName);
-      else net.Create("http://spaces.ru/music/?Dir=" + dirId);
+      //if (dirId == "0") net.Create("http://spaces.ru/music/?r=main/index&name=" + userName);
+      //else net.Create("http://spaces.ru/music/?Dir=" + dirId);
       net.ExecuteGET();
 
       MatchCollection m = Regex.Matches(net.Answer, @"<a.*?</a>");
@@ -433,7 +444,7 @@ namespace SpacesDUpload {
     }
 
     private bool valid;
-    public bool Vaid {
+    public bool Valid {
       get {
         return valid;
       }
@@ -456,71 +467,94 @@ namespace SpacesDUpload {
     public Session(ref Networker net, string sid) {
       _ResetSessionData();
 
-      //Error.Reset();
-
       if (_CheckInputSID(sid)) {
         this.sid = sid;
 
         try {
-          net.Create("http://spaces.ru/settings/?sid=" + sid);
-          net.ExecuteGET();
+          net.Get("http://spaces.ru/settings/?sid=" + sid);
 
           string temp = net.GetCookieValueByName("user_id");
           if (temp != "") {
+            
             userID = temp;
             valid = true;
 
-             MixxerAPI api = new MixxerAPI(ref net);
-             userName = api.GetUserNameById(UserID);
+            MixxerAPI api = new MixxerAPI(ref net);
+            userName = api.GetUserNameById(UserID);
           }
-
         } catch (Exception e) {
-          //Error.SetError(Error.Codes.TRY_COMMON_FAIL, "E: " + e.Message);
+          App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "Session __constr err [e: " + e.Message + "]");
         }
       }
     }
   }
 
-  public static class Error {
+  public class Error {
     public static class Codes {
       public const int NO_ERROR = 0;
       public const int WRONG_PARSE_DATA = 1;
       public const int TRY_COMMON_FAIL = 2;
     }
 
-    public static readonly string ERROR_COMMON = "Ошибка";
-
+    public Error() {
+      lastErrorCode = Codes.NO_ERROR;
+      extMessage = "";
+      place = "";
+    }
+   
     // Data
-    public static int lastErrorCode = 0;
-    public static string extMessage = "";
+    private int lastErrorCode = 0;
+    private string extMessage = "";
+    private string place = "";
+    private int errCount = 0;
 
     // Func
-    public static bool CheckIsError() {
+    public bool CheckIsError() {
       if (lastErrorCode != Codes.NO_ERROR) return true;
       return false;
     }
 
-    public static void SetError(int code, string _extMessage) {
+    public void SetError(int code, string _place = "n/a", string _extMessage = "n/a") {
+      errCount++;
       lastErrorCode = code;
       extMessage = _extMessage;
+      place = _place;
+      Debug.WriteLine("[ERROR] code: " + code + ", at: " + place + ", message: " + extMessage);
+
+      if (code == Codes.NO_ERROR) {
+        Debug.WriteLine("[WTF U DOING, DUDE???]");
+      }
     }
 
-    public static void Reset() {
-      lastErrorCode = 0;
+    public void Reset() {
+      lastErrorCode = Codes.NO_ERROR;
+      errCount = 0;
       extMessage = "";
+      place = "";
     }
 
-    public static string Message {
+    public string ExtMessage {
+      get {
+        return extMessage;
+      }
+    }
+
+    public string Message {
       get {
         string temp = "";
         switch (lastErrorCode) {
-          case 0: {
+          case Codes.NO_ERROR: {
             temp += "Нет ошибки";
             break;
           }
 
-          case 1: {
+          case Codes.WRONG_PARSE_DATA: {
             temp += "Ошибка чтения данных";
+            break;
+          }
+
+          case Codes.TRY_COMMON_FAIL: {
+            temp += "Общая ошибка приложения";
             break;
           }
 
@@ -530,15 +564,20 @@ namespace SpacesDUpload {
           }
         }
 
-        return temp += "\n[e: " + extMessage + "]";
+        return temp += "\n\n--- --  Отладочная информация -- ---\nРасположение: " + place
+          + "\nИнфо: " + extMessage + "\nОшибок: " + errCount;
       }
     }
   }
 
 
   public class Networker {
-    private HttpWebRequest request;
-    private string useragent;
+    // HTTP libs vars
+    private HttpClientHandler handler;
+    private HttpClient client;
+    private HttpResponseMessage response;
+
+    // HTTP opts
     private CookieContainer cookies;
     private NameValueCollection postParams;
     
@@ -556,9 +595,8 @@ namespace SpacesDUpload {
       }
     }
    
-
     public string GetValueByParam(string name) {
-      string url = request.Address.Query.Substring(1);
+      string url = response.RequestMessage.RequestUri.Query.Substring(1);
 
       string []param = url.Split('&');
 
@@ -574,44 +612,50 @@ namespace SpacesDUpload {
     }
 
     public Networker(string useragent) {
-      this.useragent = useragent;
-
       cookies = new CookieContainer();
       postParams = new NameValueCollection();
+
+      handler = new HttpClientHandler();
+
+      handler.AllowAutoRedirect = true;
+      handler.MaxAutomaticRedirections = 10;
+
+      handler.UseCookies = true;
+      handler.CookieContainer = cookies;
+           
+      client = new HttpClient(handler);
+
+      client.DefaultRequestHeaders.UserAgent.ParseAdd(useragent);
     }
      
-    public void Create(string url) {
-      request = (HttpWebRequest)WebRequest.Create(url);
-      request.UserAgent = useragent;
-      request.CookieContainer = cookies;
-      request.AllowAutoRedirect = true;
-      request.KeepAlive = false;
-
-      postParams.Clear();
-      postParams = HttpUtility.ParseQueryString(String.Empty);
-    }
-
-    public void ExecuteGET() {
-      request.Method = "GET";
-
+    public void Get(string url) {
       try {
-        using (HttpWebResponse answer = request.GetResponse() as HttpWebResponse) {
-          using (StreamReader reader = new StreamReader(answer.GetResponseStream())) {
-            this.answer = reader.ReadToEnd();
-            this.lastCodeAnswer = (int)answer.StatusCode;
-          }
+        response = client.GetAsync(url).Result;
+
+        using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
+          answer = stream.ReadToEnd();
         }
+
+        lastCodeAnswer = (int)response.StatusCode;
       } catch {
-        // err
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString());
+        throw;
       }
     }
 
-    public void PostAdd(string name, string value) {
-      postParams.Add(name, value);
+    public void Free() {
+      if (client != null) client.Dispose();
+      if (response != null) response.Dispose();
+      if (handler != null) handler.Dispose();
+    }
+
+    [System.Obsolete("Use Get() method!!!")]
+    public void ExecuteGET() {
+      throw new Exception("OLD METHOD");
     }
 
     public void ExecutePOST() {
-      request.Method = "POST";
+     /* request.Method = "POST";
 
       try {
         using (Stream rStream = request.GetRequestStream()) {
@@ -627,12 +671,16 @@ namespace SpacesDUpload {
         }
       } catch {
         // err
-      }
+      }*/
     }
 
     public string GetCookieValueByName(string name) {
-      foreach (Cookie c in cookies.GetCookies(new Uri("http://" + request.Host))) {
-        if (c.Name == name) return c.Value;
+      try {
+        foreach (Cookie c in cookies.GetCookies(new Uri("http://" + response.RequestMessage.RequestUri.Host))) {
+          if (c.Name == name) return c.Value;
+        }
+      } catch (Exception e) {
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "GetCookieValueByName error: " + e.Message);
       }
       
       return "";
@@ -650,22 +698,18 @@ namespace SpacesDUpload {
     public static readonly string UPDATE_LINK = "http://spaces.ru/forums/?r=17760125";
 
     public Updater() {
-      Error.Reset();
-
       try {
-        var request = (HttpWebRequest)WebRequest.Create(UPDATE_LINK);
+        App.net.Get(UPDATE_LINK);
 
-        using (var answer = new StreamReader(request.GetResponse().GetResponseStream())) {
-          Match m = Regex.Match(answer.ReadToEnd(), @"###LASTVERSION:(\d)");
+        Match m = Regex.Match(App.net.Answer, @"###LASTVERSION:(\d)");
 
-          if (m.Groups.Count == 2) {
-            lastVersion = Convert.ToInt32(m.Groups[1].Value);
-          } else {
-            Error.SetError(Error.Codes.WRONG_PARSE_DATA , "Err count: " + m.Groups.Count);
-          }
-        }
+        if (m.Groups.Count == 2) {
+          lastVersion = Convert.ToInt32(m.Groups[1].Value);
+        } else {
+          App.err.SetError(Error.Codes.WRONG_PARSE_DATA, this.ToString(), "Err count: " + m.Groups.Count);
+        }      
       } catch (Exception e) {
-        Error.SetError(Error.Codes.TRY_COMMON_FAIL, "E: " + e.Message);
+      App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), e.Message);
       }
     }
 
