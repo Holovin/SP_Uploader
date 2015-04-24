@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
-using System.Net;
-using System.IO;
-using System.Text.RegularExpressions;
+using System.Collections.Specialized;
 using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Runtime.Serialization.Json;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.Helpers;
+using System.Windows.Forms;
+using System.Runtime.Serialization.Json;
+using System.Xml;
+using System.Web.Script.Serialization;
 
 namespace SpacesDUpload {
   public partial class FormApp: Form {
@@ -41,6 +45,18 @@ namespace SpacesDUpload {
       CClearFilesList(sender, e);
     }
 
+    private void ButtonAuth_Click(object sender, EventArgs e) {
+      CAuth(sender, e);
+    }
+
+    private void ListViewDirs_MouseDoubleClick(object sender, MouseEventArgs e) {
+      CChangeFileDir(sender, e);
+    }
+
+    private void ButtonUpload_Click(object sender, EventArgs e) {
+      CUpload(sender, e);
+    }
+
     // GUI
     private void CGUIInit() {
       App.net = new Networker(App.UA);
@@ -51,7 +67,9 @@ namespace SpacesDUpload {
     }
 
     private void CAddFiles(object sender, EventArgs e) {
-      VGUILock(); 
+      const int maxFileSize = 62914560;
+
+      CLock(); 
       OpenFileDialog modal = new OpenFileDialog();
 
       modal.AddExtension = true;
@@ -62,17 +80,27 @@ namespace SpacesDUpload {
       modal.InitialDirectory = Directory.GetCurrentDirectory();
       modal.Multiselect = true;
       modal.Title = "Выберите файлы";
-
+     
       if (modal.ShowDialog() == DialogResult.OK) {
-        ListBoxFiles.Items.AddRange(modal.FileNames);
+        FileInfo f;
+        int added = 0;
+
+        foreach (string item in modal.FileNames) {
+          f = new FileInfo(item);
+          if (f.Length < maxFileSize) {
+            added++;
+            ListBoxFiles.Items.Add(item);
+          }          
+        }
+        
         VUpdateFilesInfo();
-        VShowMessage("Файлы добавлены", "Добавлено файлов: " + modal.FileNames.GetLength(0));
+        VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (modal.FileNames.GetLength(0) - added));
       }
-      VGUIUnlock();
+      CUnlock();
     }
 
     private void CAddFilesFromDir(object sender, EventArgs e) {
-      VGUILock();
+      CLock();
       FolderBrowserDialog modal = new FolderBrowserDialog();
 
       modal.Description = "Выберите папку с файлами";
@@ -84,7 +112,7 @@ namespace SpacesDUpload {
         ListBoxFiles.Items.AddRange(files);
         VUpdateFilesInfo();
       }
-      VGUIUnlock();
+      CUnlock();
     }
 
     private void VUpdateFilesInfo() {
@@ -109,30 +137,34 @@ namespace SpacesDUpload {
     }
 
     private void CClearFilesList(object sender, EventArgs e) {
-      VGUILock();
+      CLock();
       VClearFilesList();
       VUpdateFilesInfo();
-      VGUIUnlock();
+      CUnlock();
     }
 
-    private void VLockButton(object sender) {
-      Button control = sender as Button;
+    private void VLockControl(object sender) {
+      Control control = sender as Control;
       if (control == null) return;
       control.Enabled = false;
     }
 
-    private void VUnlockButton(object sender) {
-      Button control = sender as Button;
+    private void VUnlockControl(object sender) {
+      Control control = sender as Control;
       if (control == null) return;
       control.Enabled = true;
     }
 
-    private void CUpdateChecker(object sender, EventArgs e) {
-      VGUILock();
-      VLockButton(sender);
+    private async void CUpdateChecker(object sender, EventArgs e) {
+      CLock();
+      VLockControl(sender);
 
-      Updater up = new Updater();
+      Updater up = null;
 
+      await Task.Factory.StartNew(() => {
+        up = new Updater();
+      }, TaskCreationOptions.LongRunning);
+    
       if (Error.CheckIsError()) {
         VShowMessage(Error.ERROR_COMMON, Error.Message);
       } else {
@@ -140,8 +172,8 @@ namespace SpacesDUpload {
       }
 
       VUpdateText(up.LastVersion);
-      VUnlockButton(sender);
-      VGUIUnlock();
+      VUnlockControl(sender);
+      CUnlock();
     }
 
     private void VShowMessage(string caption, string message) {
@@ -156,51 +188,87 @@ namespace SpacesDUpload {
       this.Text = App.NAME;
       this.LabelAbout.Text = App.NAME;
 
-      //[DEBUG]
-      //AppTabControl.TabPages.Remove(AppTabPageUploader);      
+      //VTabAccessChange(AppTabPageUploader, false);
     }
 
-    private void VGUILock() {
+    private bool CLock() {
+      if (App.BeginWork()) {
+        VLock();
+        return true;
+      }
+
+      return false;      
+    }
+
+    private void VLock() {
       this.Text += " [...]";
       Application.DoEvents();
     }
 
-    private void VGUIUnlock() {
-      this.Text = App.NAME;
+    private void CUnlock() {
+      App.EndWork();
+      VUnlock();
     }
 
-    private void ButtonAuth_Click(object sender, EventArgs e) {
-      CAuth(sender, e);
+    private void VUnlock() {
+      this.Text = App.NAME;
+      Application.DoEvents();
     }
+
+    public static class AppTh {
+      public delegate void Run(string sid);
+    }
+    
+
 
     private void CAuth(object sender, EventArgs e) {
-      VGUILock();
+      CLock();
+      VLockControl(sender);
 
       FormModal d = new FormModal("Авторизация", "Введите SID сессии:");
 
+      bool okFlag = false;
+
       if (d.ShowDialog() == DialogResult.OK) {
-        App.session = new Session(ref App.net, d.InputText.Trim());
+        App.session = new Session(ref App.net, d.InputText);
         if (App.session.Vaid) {
-          MixxerAPI m = new MixxerAPI(ref App.net);
-          m.GetUserNameById(App.session.UserID);
-          //VAuthOK();
+          okFlag = true;
 
-          List<KeyValuePair<string,string>> list = new List<KeyValuePair<string, string>>();
-          list.Add(new KeyValuePair<string,string>("0", "нажми"));
-
-          VUploadDirsSet(list);
-
-          VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
-        } else VShowMessage("Ошибка", "Невалидный sid");
+          AppTh.Run a = TAuth;
+          IAsyncResult r = a.BeginInvoke(d.InputText, new AsyncCallback(VAuthOK), a);
+        } else {
+          VShowMessage("Ошибка", "Невалидный sid");
+        }
       }
 
-      VGUIUnlock();
+      if (okFlag == false) {
+        VUnlockControl(sender);
+        CUnlock();
+      }
+    }
+    
+    private void TAuth(string sid) {
+      MixxerAPI m = new MixxerAPI(ref App.net);
+      m.GetUserNameById(App.session.UserID);           
     }
 
-    private void VAuthOK() {
-      AppTabControl.TabPages.Remove(AppTabPageAuth);
-      AppTabControl.TabPages.Insert(0, AppTabPageUploader);
-      AppTabControl.SelectedIndex = 0;
+    private void VAuthOK(IAsyncResult ar) {
+      if (ar == null) throw new Exception("");
+
+      AppTh.Run a = ar.AsyncState as AppTh.Run;
+      if (a == null) throw new Exception("");
+      a.EndInvoke(ar);
+    
+      this.Invoke((MethodInvoker)delegate {
+        VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
+
+        List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
+        list.Add(new KeyValuePair<string, string>("0", "(кликни для загрузки)"));
+        VUploadDirsSet(list);
+        VTabAccessChange(AppTabPageAuth, false);
+        VTabAccessChange(AppTabPageUploader, true);
+        CUnlock();
+      });
     }
 
     private void VUploadDirsSet(List<KeyValuePair<string, string>> dict) {
@@ -210,21 +278,8 @@ namespace SpacesDUpload {
         ListViewDirs.Items.Add(new ListViewItem(new string[] { item.Key, item.Value }));
       }
     }
-
-    private void button1_Click(object sender, EventArgs e) {
-      FormModal x = new FormModal("1", "1");
-
-      x.ShowDialog();
-
-      Match backLink = Regex.Match(x.InputText, @"Dir=(\d+).+?>(.+?)<.a>");
-
-      MessageBox.Show(backLink.Groups[1] + " - " + backLink.Groups[2]);
-
-    }
   
-    private void ListViewDirs_MouseDoubleClick(object sender, MouseEventArgs e) {
-      CChangeFileDir(sender, e);      
-    }
+
 
     private void CChangeFileDir(object sender, MouseEventArgs e) {
       List<KeyValuePair<string, string>> dict = App.api.GetMusicDirs(App.session.UserName, ListViewDirs.SelectedItems[0].Text);
@@ -232,6 +287,22 @@ namespace SpacesDUpload {
       dict.Insert(0, new KeyValuePair<string, string>("0", "< корневая папка >"));
 
       VUploadDirsSet(dict);
+    }
+
+    private void VTabAccessChange(TabPage page, bool newValue) {
+      foreach (Control control in page.Controls) {
+        control.Enabled = newValue;
+      }
+
+      AppTabControl.SelectedTab = page;
+    }
+
+    private void CUpload(object sender, EventArgs e) {
+      VTabAccessChange(AppTabPageUploader, false);
+      VTabAccessChange(AppTabPageProgress, true);
+
+
+      App.api.GetUploadUrl(App.session.SID);
     }
 
   }
@@ -248,6 +319,25 @@ namespace SpacesDUpload {
     public static Session session;
     public static Networker net;
     public static MixxerAPI api;
+
+    private static bool workFlag = false;
+    public static bool BeginWork() {
+      if (workFlag == true) {
+        return false;
+      } else {
+        workFlag = true;
+        return true;
+      }
+    }
+
+    public static bool EndWork() {
+      if (workFlag == true) {
+        workFlag = false;
+        return false;
+      }
+
+      throw new Exception("Try end work, but work doesnt started");
+    }
   }
 
   public class MixxerAPI {
@@ -261,6 +351,27 @@ namespace SpacesDUpload {
       net.Create("http://" + id + ".spaces.ru/");
       net.ExecuteGET();
       return net.GetValueByParam("name");
+    }
+
+    // 6 - music
+    public string GetUploadUrl(string sid, string type = "6") {
+      net.Create("http://spaces.ru/api/files/");
+
+      net.PostAdd("method", "getUploadInfo");
+      net.PostAdd("Type", type);
+
+      net.ExecutePOST();
+
+      String answer = "";
+
+      try {
+        var dict = new JavaScriptSerializer().Deserialize<Dictionary<string, dynamic>>(net.Answer.ToString());
+        answer = (string)dict["url"];
+      } catch (Exception e) {
+        Error.SetError(Error.Codes.WRONG_PARSE_DATA, "Empty url parse");
+      }
+      
+      return answer;
     }
 
     public List<KeyValuePair<string, string>> GetMusicDirs(string userName, string dirId) {
@@ -278,7 +389,7 @@ namespace SpacesDUpload {
         if (temp.Groups.Count == 3 && temp.Groups[1].Value != "") {
           dict.Add(new KeyValuePair<string, string>(temp.Groups[1].Value, temp.Groups[2].Value));
         } else {
-          Error.SetError(Error.Codes.WRONG_PARSE_DATA, "Real size incorrect: " + temp.Groups.Count);
+          //Error.SetError(Error.Codes.WRONG_PARSE_DATA, "Real size incorrect: " + temp.Groups.Count);
         }
       }
      
@@ -345,7 +456,7 @@ namespace SpacesDUpload {
     public Session(ref Networker net, string sid) {
       _ResetSessionData();
 
-      Error.Reset();
+      //Error.Reset();
 
       if (_CheckInputSID(sid)) {
         this.sid = sid;
@@ -364,7 +475,7 @@ namespace SpacesDUpload {
           }
 
         } catch (Exception e) {
-          Error.SetError(Error.Codes.TRY_COMMON_FAIL, "E: " + e.Message);
+          //Error.SetError(Error.Codes.TRY_COMMON_FAIL, "E: " + e.Message);
         }
       }
     }
@@ -429,6 +540,7 @@ namespace SpacesDUpload {
     private HttpWebRequest request;
     private string useragent;
     private CookieContainer cookies;
+    private NameValueCollection postParams;
     
     private string answer;
     public string Answer {
@@ -437,11 +549,13 @@ namespace SpacesDUpload {
       }
     }
 
-    public string AnswerDecoded {
+    private int lastCodeAnswer;
+    public int LastCodeAnswer {
       get {
-        return WebUtility.HtmlDecode(answer);
+        return lastCodeAnswer;
       }
     }
+   
 
     public string GetValueByParam(string name) {
       string url = request.Address.Query.Substring(1);
@@ -463,6 +577,7 @@ namespace SpacesDUpload {
       this.useragent = useragent;
 
       cookies = new CookieContainer();
+      postParams = new NameValueCollection();
     }
      
     public void Create(string url) {
@@ -470,11 +585,48 @@ namespace SpacesDUpload {
       request.UserAgent = useragent;
       request.CookieContainer = cookies;
       request.AllowAutoRedirect = true;
+      request.KeepAlive = false;
+
+      postParams.Clear();
+      postParams = HttpUtility.ParseQueryString(String.Empty);
     }
 
     public void ExecuteGET() {
-      using (var answer = new StreamReader(request.GetResponse().GetResponseStream())) {
-        this.answer = answer.ReadToEnd();
+      request.Method = "GET";
+
+      try {
+        using (HttpWebResponse answer = request.GetResponse() as HttpWebResponse) {
+          using (StreamReader reader = new StreamReader(answer.GetResponseStream())) {
+            this.answer = reader.ReadToEnd();
+            this.lastCodeAnswer = (int)answer.StatusCode;
+          }
+        }
+      } catch {
+        // err
+      }
+    }
+
+    public void PostAdd(string name, string value) {
+      postParams.Add(name, value);
+    }
+
+    public void ExecutePOST() {
+      request.Method = "POST";
+
+      try {
+        using (Stream rStream = request.GetRequestStream()) {
+          rStream.Write(Encoding.UTF8.GetBytes(postParams.ToString()), 0,
+                        Encoding.UTF8.GetByteCount(postParams.ToString()));
+        }
+
+        using (HttpWebResponse answer = request.GetResponse() as HttpWebResponse) {
+          using (StreamReader reader = new StreamReader(answer.GetResponseStream())) {
+            this.answer = reader.ReadToEnd();
+            this.lastCodeAnswer = (int)answer.StatusCode;
+          }
+        }
+      } catch {
+        // err
       }
     }
 
