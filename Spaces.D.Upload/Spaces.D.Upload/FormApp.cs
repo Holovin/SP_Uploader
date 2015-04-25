@@ -15,6 +15,7 @@ using System.Xml;
 using System.Web.Script.Serialization;
 using System.Net.Http;
 using System.Reflection.Emit;
+using System.Threading;
 
 namespace SpacesDUpload {
   public partial class FormApp: Form {
@@ -68,10 +69,10 @@ namespace SpacesDUpload {
       VUpdateText();
     }
 
-    private void CAddFiles(object sender, EventArgs e) {
-      const int maxFileSize = 62914560;
+    private async void CAddFiles(object sender, EventArgs e) {
+      if (!CLock()) return;
+      VLockControl(sender);
 
-      CLock(); 
       OpenFileDialog modal = new OpenFileDialog();
 
       modal.AddExtension = true;
@@ -87,22 +88,28 @@ namespace SpacesDUpload {
         FileInfo f;
         int added = 0;
 
-        foreach (string item in modal.FileNames) {
-          f = new FileInfo(item);
-          if (f.Length < maxFileSize) {
-            added++;
-            ListBoxFiles.Items.Add(item);
-          }          
-        }
-        
+        List<string> itemCache = new List<string>();
+        await Task.Factory.StartNew(() => {
+          foreach (string item in modal.FileNames) {
+            f = new FileInfo(item);
+              if (f.Length < App.Const.maxFileSize) {
+                added++;
+                itemCache.Add(item);
+              }
+          }
+        }, TaskCreationOptions.LongRunning);
+        ListBoxFiles.Items.AddRange(itemCache.ToArray());
+     
         VUpdateFilesInfo();
         VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (modal.FileNames.GetLength(0) - added));
       }
+
+      VUnlockControl(sender);
       CUnlock();
     }
 
-    private void CAddFilesFromDir(object sender, EventArgs e) {
-      CLock();
+    private async void CAddFilesFromDir(object sender, EventArgs e) {
+      if (!CLock()) return;
       FolderBrowserDialog modal = new FolderBrowserDialog();
 
       modal.Description = "Выберите папку с файлами";
@@ -110,9 +117,27 @@ namespace SpacesDUpload {
       modal.RootFolder = Environment.SpecialFolder.MyComputer;
 
       if (modal.ShowDialog() == DialogResult.OK) {
-        string[] files = Directory.GetFiles(modal.SelectedPath, "*.mp3", SearchOption.AllDirectories);
-        ListBoxFiles.Items.AddRange(files);
+        FileInfo f;
+        int added = 0;
+
+        List<string> itemCache = new List<string>();
+        string[] files = null;
+        await Task.Factory.StartNew(() => {
+          files = Directory.GetFiles(modal.SelectedPath, "*.mp3", SearchOption.AllDirectories);
+
+          foreach (string item in files) {
+            f = new FileInfo(item);
+            if (f.Length < App.Const.maxFileSize) {
+              added++;
+              itemCache.Add(item);
+            }
+          }
+        }, TaskCreationOptions.LongRunning);
+
+        ListBoxFiles.Items.AddRange(itemCache.ToArray());
+
         VUpdateFilesInfo();
+        VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (files.Length - added));
       }
       CUnlock();
     }
@@ -158,7 +183,7 @@ namespace SpacesDUpload {
     }
 
     private async void CUpdateChecker(object sender, EventArgs e) {
-      CLock();
+      if (!CLock()) return;
       VLockControl(sender);
 
       Updater up = null;
@@ -229,7 +254,7 @@ namespace SpacesDUpload {
     }
 
     private async void CAuth(object sender, EventArgs e) {
-      CLock();
+      if (!CLock()) return;
       VLockControl(sender);
 
       FormModal d = new FormModal("Авторизация", "Введите SID сессии:");
@@ -252,7 +277,6 @@ namespace SpacesDUpload {
           VUploadDirsSet(list);
           VTabAccessChange(AppTabPageAuth, false);
           VTabAccessChange(AppTabPageUploader, true);
-          CUnlock();
         } else {
           CShowErrorIfNeeded();
         }
@@ -285,15 +309,16 @@ namespace SpacesDUpload {
         control.Enabled = newValue;
       }
 
-      AppTabControl.SelectedTab = page;
+      if (newValue) AppTabControl.SelectedTab = page;
     }
 
     private void CUpload(object sender, EventArgs e) {
-      VTabAccessChange(AppTabPageUploader, false);
-      VTabAccessChange(AppTabPageProgress, true);
+      //VTabAccessChange(AppTabPageUploader, false);
+      //VTabAccessChange(AppTabPageProgress, true);
 
+      MessageBox.Show(App.api.GetUploadUrl(App.session.SID));
 
-      App.api.GetUploadUrl(App.session.SID);
+      CShowErrorIfNeeded();
     }
 
     private void ButtonDebug_Click(object sender, EventArgs ev) {
@@ -318,6 +343,10 @@ namespace SpacesDUpload {
 
   public static class App {
     // Const
+    public static class Const {
+      public const int maxFileSize = 62914560;
+    }
+
     public static readonly string NAME = "Spaces.D.MusicUploader";
     public static readonly string AUTHOR = "DJ_miXxXer";
     public static readonly string AUTHOR_URL = "http://spaces.ru/mysite/?name=DJ_miXxXer";
@@ -366,22 +395,23 @@ namespace SpacesDUpload {
 
     // 6 - music
     public string GetUploadUrl(string sid, string type = "6") {
-      //net.Create("http://spaces.ru/api/files/");
+      List<KeyValuePair<string, string>> postData = new List<KeyValuePair<string,string>>();
 
-      //net.PostAdd("method", "getUploadInfo");
-      //net.PostAdd("Type", type);
-
-      net.ExecutePOST();
+      postData.Add(new KeyValuePair<string, string>("Type", "6"));
+      postData.Add(new KeyValuePair<string, string>("method", "getUploadInfo"));
+      
+      net.Post("http://spaces.ru/api/files/", postData);
 
       String answer = "";
 
       try {
+        Debug.WriteLine(App.net.Answer);
         var dict = new JavaScriptSerializer().Deserialize<Dictionary<string, dynamic>>(net.Answer.ToString());
         answer = (string)dict["url"];
       } catch (Exception e) {
         App.err.SetError(Error.Codes.WRONG_PARSE_DATA, "Empty url parse [" + e.Message + "]");
       }
-      
+           
       return answer;
     }
 
@@ -622,10 +652,15 @@ namespace SpacesDUpload {
 
       handler.UseCookies = true;
       handler.CookieContainer = cookies;
+
+      handler.Credentials = CredentialCache.DefaultCredentials;
+      handler.UseDefaultCredentials = true;
            
       client = new HttpClient(handler);
-
       client.DefaultRequestHeaders.UserAgent.ParseAdd(useragent);
+
+      client.DefaultRequestHeaders.Accept.Clear();
+      client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
     }
      
     public void Get(string url) {
@@ -643,6 +678,21 @@ namespace SpacesDUpload {
       }
     }
 
+    public void Post(string url, List<KeyValuePair<string, string>> postParams) {     
+      try {
+        var postHeaders = new FormUrlEncodedContent(postParams);
+        response = client.PostAsync(url, postHeaders).Result;
+
+        using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
+          answer = stream.ReadToEnd();
+        }
+        
+      } catch {
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString());
+        throw;
+      }
+    }
+
     public void Free() {
       if (client != null) client.Dispose();
       if (response != null) response.Dispose();
@@ -654,6 +704,7 @@ namespace SpacesDUpload {
       throw new Exception("OLD METHOD");
     }
 
+    [System.Obsolete("Use Post() method!!!")]
     public void ExecutePOST() {
      /* request.Method = "POST";
 
