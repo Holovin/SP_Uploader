@@ -680,13 +680,35 @@ namespace SpacesDUpload {
 
     public void Post(string url, List<KeyValuePair<string, string>> postParams) {     
       try {
-        var postHeaders = new FormUrlEncodedContent(postParams);
+        using (var postHeaders = new FormUrlEncodedContent(postParams)) {
         response = client.PostAsync(url, postHeaders).Result;
 
         using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
           answer = stream.ReadToEnd();
         }
+        }        
+      } catch {
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString());
+        throw;
+      }
+    }
         
+    public void PostMultipart(string url, List<KeyValuePair<string, string>> postParams, KeyValuePair<string, string> fileData) {     
+      try {
+        using (var contentData = new MultipartFormDataContent()) {
+          foreach (var item in postParams) {
+            contentData.Add(new StringContent(item.Value), item.Key);
+          }
+
+          FileInfo f = new FileInfo(fileData.Value);
+          contentData.Add(new ByteArrayContent(File.ReadAllBytes(fileData.Value)), fileData.Key, f.Name);
+
+          response = client.PostAsync(url, contentData).Result;
+
+          using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
+            answer = stream.ReadToEnd();
+          }
+        }
       } catch {
         App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString());
         throw;
