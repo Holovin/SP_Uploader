@@ -42,15 +42,20 @@
       this.ButtonAddFiles = new System.Windows.Forms.Button();
       this.ListBoxFiles = new System.Windows.Forms.ListBox();
       this.AppTabPageProgress = new System.Windows.Forms.TabPage();
+      this.GroupBoxProgressLog = new System.Windows.Forms.GroupBox();
+      this.TextBoxUploadLog = new System.Windows.Forms.TextBox();
       this.GroupBoxProgress = new System.Windows.Forms.GroupBox();
-      this.TextBoxUploaderLog = new System.Windows.Forms.TextBox();
-      this.LabelCurrentFile = new System.Windows.Forms.Label();
-      this.progressBar1 = new System.Windows.Forms.ProgressBar();
+      this.LabelTotalWork = new System.Windows.Forms.Label();
+      this.ProgressBarTotal = new System.Windows.Forms.ProgressBar();
+      this.LabelCurrentWork = new System.Windows.Forms.Label();
+      this.ProgressBarCurrent = new System.Windows.Forms.ProgressBar();
       this.AppTabPageAbout = new System.Windows.Forms.TabPage();
       this.GroupBoxUpdate = new System.Windows.Forms.GroupBox();
       this.LabelVersion = new System.Windows.Forms.Label();
       this.ButtonUpdateCheck = new System.Windows.Forms.Button();
       this.GroupBoxAbout = new System.Windows.Forms.GroupBox();
+      this.LabelAboutText = new System.Windows.Forms.Label();
+      this.LabelLicense = new System.Windows.Forms.Label();
       this.LabelAuthor = new System.Windows.Forms.LinkLabel();
       this.LabelAbout = new System.Windows.Forms.Label();
       this.AppTabControl.SuspendLayout();
@@ -60,6 +65,7 @@
       this.GroupBoxSpacDirs.SuspendLayout();
       this.GroupBoxFiles.SuspendLayout();
       this.AppTabPageProgress.SuspendLayout();
+      this.GroupBoxProgressLog.SuspendLayout();
       this.GroupBoxProgress.SuspendLayout();
       this.AppTabPageAbout.SuspendLayout();
       this.GroupBoxUpdate.SuspendLayout();
@@ -108,6 +114,7 @@
       this.ButtonDebug.TabIndex = 1;
       this.ButtonDebug.Text = "[Debug]";
       this.ButtonDebug.UseVisualStyleBackColor = true;
+      this.ButtonDebug.Visible = false;
       this.ButtonDebug.Click += new System.EventHandler(this.ButtonDebug_Click);
       // 
       // ButtonAuth
@@ -160,8 +167,8 @@
       this.LabelSelectDirHelp.Name = "LabelSelectDirHelp";
       this.LabelSelectDirHelp.Size = new System.Drawing.Size(241, 24);
       this.LabelSelectDirHelp.TabIndex = 3;
-      this.LabelSelectDirHelp.Text = "* Двойной клик для входа в папку. Для выбора папки просто оставьте её выделенной." +
-    "";
+      this.LabelSelectDirHelp.Text = "* Двойной клик для входа в папку. Для выбора папки просто оставьте её выделенной " +
+    "(не входите в неё!).";
       // 
       // ListViewDirs
       // 
@@ -254,6 +261,7 @@
       // 
       // AppTabPageProgress
       // 
+      this.AppTabPageProgress.Controls.Add(this.GroupBoxProgressLog);
       this.AppTabPageProgress.Controls.Add(this.GroupBoxProgress);
       this.AppTabPageProgress.Location = new System.Drawing.Point(4, 22);
       this.AppTabPageProgress.Name = "AppTabPageProgress";
@@ -263,40 +271,63 @@
       this.AppTabPageProgress.Text = "Загрузка";
       this.AppTabPageProgress.UseVisualStyleBackColor = true;
       // 
+      // GroupBoxProgressLog
+      // 
+      this.GroupBoxProgressLog.Controls.Add(this.TextBoxUploadLog);
+      this.GroupBoxProgressLog.Location = new System.Drawing.Point(6, 171);
+      this.GroupBoxProgressLog.Name = "GroupBoxProgressLog";
+      this.GroupBoxProgressLog.Size = new System.Drawing.Size(640, 135);
+      this.GroupBoxProgressLog.TabIndex = 1;
+      this.GroupBoxProgressLog.TabStop = false;
+      // 
+      // TextBoxUploadLog
+      // 
+      this.TextBoxUploadLog.Location = new System.Drawing.Point(6, 19);
+      this.TextBoxUploadLog.Multiline = true;
+      this.TextBoxUploadLog.Name = "TextBoxUploadLog";
+      this.TextBoxUploadLog.Size = new System.Drawing.Size(628, 104);
+      this.TextBoxUploadLog.TabIndex = 0;
+      this.TextBoxUploadLog.Text = " ";
+      // 
       // GroupBoxProgress
       // 
-      this.GroupBoxProgress.Controls.Add(this.TextBoxUploaderLog);
-      this.GroupBoxProgress.Controls.Add(this.LabelCurrentFile);
-      this.GroupBoxProgress.Controls.Add(this.progressBar1);
+      this.GroupBoxProgress.Controls.Add(this.LabelTotalWork);
+      this.GroupBoxProgress.Controls.Add(this.ProgressBarTotal);
+      this.GroupBoxProgress.Controls.Add(this.LabelCurrentWork);
+      this.GroupBoxProgress.Controls.Add(this.ProgressBarCurrent);
       this.GroupBoxProgress.Location = new System.Drawing.Point(6, 6);
       this.GroupBoxProgress.Name = "GroupBoxProgress";
-      this.GroupBoxProgress.Size = new System.Drawing.Size(640, 300);
+      this.GroupBoxProgress.Size = new System.Drawing.Size(646, 159);
       this.GroupBoxProgress.TabIndex = 0;
       this.GroupBoxProgress.TabStop = false;
       // 
-      // TextBoxUploaderLog
+      // LabelTotalWork
       // 
-      this.TextBoxUploaderLog.Location = new System.Drawing.Point(385, 10);
-      this.TextBoxUploaderLog.Multiline = true;
-      this.TextBoxUploaderLog.Name = "TextBoxUploaderLog";
-      this.TextBoxUploaderLog.Size = new System.Drawing.Size(249, 284);
-      this.TextBoxUploaderLog.TabIndex = 2;
-      this.TextBoxUploaderLog.Text = "Отчёт...";
+      this.LabelTotalWork.Location = new System.Drawing.Point(20, 98);
+      this.LabelTotalWork.Name = "LabelTotalWork";
+      this.LabelTotalWork.Size = new System.Drawing.Size(347, 22);
+      this.LabelTotalWork.TabIndex = 4;
       // 
-      // LabelCurrentFile
+      // ProgressBarTotal
       // 
-      this.LabelCurrentFile.Location = new System.Drawing.Point(17, 63);
-      this.LabelCurrentFile.Name = "LabelCurrentFile";
-      this.LabelCurrentFile.Size = new System.Drawing.Size(607, 23);
-      this.LabelCurrentFile.TabIndex = 1;
-      this.LabelCurrentFile.Text = "Текущий файл: n/a";
+      this.ProgressBarTotal.Location = new System.Drawing.Point(20, 123);
+      this.ProgressBarTotal.Name = "ProgressBarTotal";
+      this.ProgressBarTotal.Size = new System.Drawing.Size(347, 23);
+      this.ProgressBarTotal.TabIndex = 3;
       // 
-      // progressBar1
+      // LabelCurrentWork
       // 
-      this.progressBar1.Location = new System.Drawing.Point(33, 89);
-      this.progressBar1.Name = "progressBar1";
-      this.progressBar1.Size = new System.Drawing.Size(330, 23);
-      this.progressBar1.TabIndex = 0;
+      this.LabelCurrentWork.Location = new System.Drawing.Point(17, 26);
+      this.LabelCurrentWork.Name = "LabelCurrentWork";
+      this.LabelCurrentWork.Size = new System.Drawing.Size(350, 23);
+      this.LabelCurrentWork.TabIndex = 1;
+      // 
+      // ProgressBarCurrent
+      // 
+      this.ProgressBarCurrent.Location = new System.Drawing.Point(20, 52);
+      this.ProgressBarCurrent.Name = "ProgressBarCurrent";
+      this.ProgressBarCurrent.Size = new System.Drawing.Size(347, 23);
+      this.ProgressBarCurrent.TabIndex = 0;
       // 
       // AppTabPageAbout
       // 
@@ -316,7 +347,7 @@
       this.GroupBoxUpdate.Controls.Add(this.ButtonUpdateCheck);
       this.GroupBoxUpdate.Location = new System.Drawing.Point(411, 6);
       this.GroupBoxUpdate.Name = "GroupBoxUpdate";
-      this.GroupBoxUpdate.Size = new System.Drawing.Size(235, 179);
+      this.GroupBoxUpdate.Size = new System.Drawing.Size(235, 300);
       this.GroupBoxUpdate.TabIndex = 5;
       this.GroupBoxUpdate.TabStop = false;
       this.GroupBoxUpdate.Text = "Обновления";
@@ -341,20 +372,41 @@
       // 
       // GroupBoxAbout
       // 
+      this.GroupBoxAbout.Controls.Add(this.LabelAboutText);
+      this.GroupBoxAbout.Controls.Add(this.LabelLicense);
       this.GroupBoxAbout.Controls.Add(this.LabelAuthor);
       this.GroupBoxAbout.Controls.Add(this.LabelAbout);
       this.GroupBoxAbout.Location = new System.Drawing.Point(6, 6);
       this.GroupBoxAbout.Name = "GroupBoxAbout";
-      this.GroupBoxAbout.Size = new System.Drawing.Size(399, 179);
+      this.GroupBoxAbout.Size = new System.Drawing.Size(399, 300);
       this.GroupBoxAbout.TabIndex = 4;
       this.GroupBoxAbout.TabStop = false;
       this.GroupBoxAbout.Text = "О...";
       // 
+      // LabelAboutText
+      // 
+      this.LabelAboutText.Location = new System.Drawing.Point(9, 68);
+      this.LabelAboutText.Name = "LabelAboutText";
+      this.LabelAboutText.Size = new System.Drawing.Size(384, 185);
+      this.LabelAboutText.TabIndex = 5;
+      this.LabelAboutText.Text = "Программа распространяется бесплатно.\r\n\r\nНо если вам понравилось это приложение, " +
+    "вы можете пожертвовать деньги на её развитие:\r\nZ169128650419\r\nR213374554173";
+      // 
+      // LabelLicense
+      // 
+      this.LabelLicense.AutoSize = true;
+      this.LabelLicense.ForeColor = System.Drawing.SystemColors.ButtonShadow;
+      this.LabelLicense.Location = new System.Drawing.Point(6, 274);
+      this.LabelLicense.Name = "LabelLicense";
+      this.LabelLicense.Size = new System.Drawing.Size(301, 13);
+      this.LabelLicense.TabIndex = 4;
+      this.LabelLicense.Text = "* It\'s free software, published under the BSD-3-Clause license. ";
+      // 
       // LabelAuthor
       // 
-      this.LabelAuthor.Location = new System.Drawing.Point(6, 51);
+      this.LabelAuthor.Location = new System.Drawing.Point(6, 45);
       this.LabelAuthor.Name = "LabelAuthor";
-      this.LabelAuthor.Size = new System.Drawing.Size(171, 23);
+      this.LabelAuthor.Size = new System.Drawing.Size(387, 23);
       this.LabelAuthor.TabIndex = 3;
       this.LabelAuthor.TabStop = true;
       this.LabelAuthor.Text = "by DJ_miXxXer";
@@ -381,6 +433,7 @@
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
       this.Text = "Spaces.D.Uploader";
       this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.FormApp_FormClosed);
+      this.Load += new System.EventHandler(this.FormApp_Load);
       this.Shown += new System.EventHandler(this.FormApp_Shown);
       this.AppTabControl.ResumeLayout(false);
       this.AppTabPageAuth.ResumeLayout(false);
@@ -389,11 +442,13 @@
       this.GroupBoxSpacDirs.ResumeLayout(false);
       this.GroupBoxFiles.ResumeLayout(false);
       this.AppTabPageProgress.ResumeLayout(false);
+      this.GroupBoxProgressLog.ResumeLayout(false);
+      this.GroupBoxProgressLog.PerformLayout();
       this.GroupBoxProgress.ResumeLayout(false);
-      this.GroupBoxProgress.PerformLayout();
       this.AppTabPageAbout.ResumeLayout(false);
       this.GroupBoxUpdate.ResumeLayout(false);
       this.GroupBoxAbout.ResumeLayout(false);
+      this.GroupBoxAbout.PerformLayout();
       this.ResumeLayout(false);
 
     }
@@ -426,10 +481,15 @@
     private System.Windows.Forms.GroupBox GroupBoxUpdate;
     private System.Windows.Forms.GroupBox GroupBoxAbout;
     private System.Windows.Forms.GroupBox GroupBoxProgress;
-    private System.Windows.Forms.Label LabelCurrentFile;
-    private System.Windows.Forms.ProgressBar progressBar1;
-    private System.Windows.Forms.TextBox TextBoxUploaderLog;
+    private System.Windows.Forms.Label LabelCurrentWork;
+    private System.Windows.Forms.ProgressBar ProgressBarCurrent;
     private System.Windows.Forms.Button ButtonDebug;
+    private System.Windows.Forms.Label LabelTotalWork;
+    private System.Windows.Forms.ProgressBar ProgressBarTotal;
+    private System.Windows.Forms.Label LabelAboutText;
+    private System.Windows.Forms.Label LabelLicense;
+    private System.Windows.Forms.GroupBox GroupBoxProgressLog;
+    private System.Windows.Forms.TextBox TextBoxUploadLog;
   }
 }
 

@@ -4,18 +4,13 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
-using System.Runtime.Serialization.Json;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web;
-using System.Web.Helpers;
-using System.Windows.Forms;
-using System.Xml;
-using System.Web.Script.Serialization;
 using System.Net.Http;
-using System.Reflection.Emit;
+using System.Net.Http.Handlers;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Web.Script.Serialization;
+using System.Windows.Forms;
 
 namespace SpacesDUpload {
   public partial class FormApp: Form {
@@ -55,14 +50,12 @@ namespace SpacesDUpload {
       CChangeFileDir(sender, e);
     }
 
-    private void ButtonUpload_Click(object sender, EventArgs e) {
-      CUpload(sender, e);
+    private void ButtonUpload_Click(object sender, EventArgs e) {     
+      CUpload(sender, e);      
     }
 
-    // GUI
     private void CGUIInit() {
       App.net = new Networker(App.UA);
-      App.api = new MixxerAPI(ref App.net);
       App.err = new Error();
 
       VGUIInit();
@@ -145,6 +138,9 @@ namespace SpacesDUpload {
     private void VUpdateFilesInfo() {
       float size = 0;
 
+      if (ListBoxFiles.Items.Count < 1) VLockControl(GroupBoxSpacDirs);
+      else VUnlockControl(GroupBoxSpacDirs);
+
       foreach (string item in ListBoxFiles.Items) {
         FileInfo f = new FileInfo(item);
         size += f.Length / (1024 * 1024);
@@ -164,9 +160,11 @@ namespace SpacesDUpload {
     }
 
     private void CClearFilesList(object sender, EventArgs e) {
-      CLock();
+      if (!CLock()) return;
+
       VClearFilesList();
       VUpdateFilesInfo();
+
       CUnlock();
     }
 
@@ -186,12 +184,10 @@ namespace SpacesDUpload {
       if (!CLock()) return;
       VLockControl(sender);
 
-      Updater up = null;
+      Updater up = new Updater();
 
-      await Task.Factory.StartNew(() => {
-        up = new Updater();
-      }, TaskCreationOptions.LongRunning);
-    
+      await up.Create();
+            
       if (App.err.CheckIsError()) {
         CShowErrorIfNeeded();
       } else {
@@ -215,7 +211,8 @@ namespace SpacesDUpload {
       this.Text = App.NAME;
       this.LabelAbout.Text = App.NAME;
 
-      //VTabAccessChange(AppTabPageUploader, false);
+      VTabAccessChange(AppTabPageUploader, false);
+      VTabAccessChange(AppTabPageProgress, false);
     }
 
     private bool CLock() {
@@ -240,16 +237,18 @@ namespace SpacesDUpload {
 
     private void VUnlock() {
       this.Text = App.NAME;
-      Application.DoEvents();
-    }
-
-    public static class AppTh {
-      public delegate void Run(string sid);
     }
 
     private void CShowErrorIfNeeded(string errMessage = "") {
       if (App.err.CheckIsError()) {
-        VShowMessage("Ошибка приложения!", "Сообщение: " + App.err.Message + "\nLast: " + errMessage);
+        // Расположение: " + place
+
+        string s = "Сообщение: " + Error.GetMessage(App.err.LastErrorCode);
+
+        if (App.err.ExtMessage.Length > 1) s += "\nИнформация: " + App.err.ExtMessage;
+        if (errMessage.Length > 1) s += "\n\nДоп. информация: " + errMessage;
+        
+        VShowMessage("Ошибка приложения! (" + App.err.ErrCount + ")", s);
       }
     }
 
@@ -262,28 +261,32 @@ namespace SpacesDUpload {
       bool okFlag = false;
 
       if (d.ShowDialog() == DialogResult.OK) {      
-        await Task.Factory.StartNew(() => {
-          App.session = new Session(ref App.net, d.InputText);
-          if (App.session.Valid) {
-            okFlag = true;
-            MixxerAPI m = new MixxerAPI(ref App.net);
-          } 
-        }, TaskCreationOptions.LongRunning);
-
+        App.session = new Session();
+        await App.session.Create(d.InputText);
+        
+        if (App.session.Valid) {
+          okFlag = true;
+        } else {
+          App.err.SetError(Error.Codes.INCORRECT_SESSION, this.ToString(), "Невалидный sid");
+        }
+        
         if (okFlag) {
           VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
+
           List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
-          list.Add(new KeyValuePair<string, string>("0", "(кликни для загрузки)"));
+          list.Add(new KeyValuePair<string, string>("0", "(кликни дважды для загрузки)"));
           VUploadDirsSet(list);
+
           VTabAccessChange(AppTabPageAuth, false);
           VTabAccessChange(AppTabPageUploader, true);
-        } else {
-          CShowErrorIfNeeded();
+          VLockControl(GroupBoxSpacDirs);
         }
-      } else {          
-        VShowMessage("Ошибка", "Невалидный sid");
+
+      } else {
+        App.err.SetError(Error.Codes.INCORRECT_SESSION, this.ToString(), "Неправильный формат");
       }
-      
+
+      CShowErrorIfNeeded();
       VUnlockControl(sender);
       CUnlock();
     }
@@ -296,12 +299,23 @@ namespace SpacesDUpload {
       }
     }
   
-    private void CChangeFileDir(object sender, MouseEventArgs e) {
-      List<KeyValuePair<string, string>> dict = App.api.GetMusicDirs(App.session.UserName, ListViewDirs.SelectedItems[0].Text);
+    private async void CChangeFileDir(object sender, MouseEventArgs e) {
+      CLock();
+      VLockControl(sender);
 
+      List<KeyValuePair<string, string>> dict = new List<KeyValuePair<string, string>>();
+
+      string dirID = ListViewDirs.SelectedItems[0].Text;
+
+      dict = await MixxerAPI.GetMusicDirs(App.session.UserName, dirID);
+        
       dict.Insert(0, new KeyValuePair<string, string>("0", "< корневая папка >"));
 
+      CShowErrorIfNeeded();
+
       VUploadDirsSet(dict);
+      VUnlockControl(sender);
+      CUnlock();
     }
 
     private void VTabAccessChange(TabPage page, bool newValue) {
@@ -312,33 +326,208 @@ namespace SpacesDUpload {
       if (newValue) AppTabControl.SelectedTab = page;
     }
 
-    private void CUpload(object sender, EventArgs e) {
-      //VTabAccessChange(AppTabPageUploader, false);
-      //VTabAccessChange(AppTabPageProgress, true);
+    private async void CUpload(object sender, EventArgs e) {
+      if (!CLock()) return;
+      VLockControl(sender);
 
-      MessageBox.Show(App.api.GetUploadUrl(App.session.SID));
+      if (ListViewDirs.Items.Count < 1) {
+        App.err.SetError(Error.Codes.WRONG_GUI_OP, this.ToString(), "Incorrect dir selector running!");
+        CShowErrorIfNeeded();
+        CUnlock();
+        return;
+      }
 
+      if (ListViewDirs.SelectedIndices.Count < 1) {
+        VShowMessage("Ошибка", "Ничего не выбрано!");
+        CUnlock();
+        VUnlockControl(sender);
+        return;
+      }
+      
+      string dirID = ListViewDirs.Items[ListViewDirs.SelectedIndices[0]].Text;
+
+      VTabAccessChange(AppTabPageUploader, false);
+      VTabAccessChange(AppTabPageProgress, true);
+
+      List<string> files = new List<string>();
+
+      foreach (string item in ListBoxFiles.Items) {
+        files.Add(item);
+      }
+                
+      var progressIndicatorCurrent = new Progress<int>(VProgressBarCurrentUpdate);
+      VProgressBarCurrentUpdate(0);
+      ProgressBarCurrent.Minimum = 0;
+      ProgressBarCurrent.Maximum = 100;
+           
+      var progressIndicatorTotal = new Progress<int>(VProgressBarTotalUpdate);
+      VProgressBarTotalUpdate(0);
+      ProgressBarTotal.Minimum = 0;
+      ProgressBarTotal.Maximum = files.Count;
+
+      var progressIndicatorCurrentTask = new Progress<string>(VCurrentWorkUploadUpdate);
+      var progressIndicatorCurrentLog = new Progress<string>(VCurrentWorkLogUploadUpdate);
+
+      await UploadMusic(files, progressIndicatorTotal, progressIndicatorCurrent,
+        progressIndicatorCurrentTask, progressIndicatorCurrentLog, dirID).ConfigureAwait(false);
+     
       CShowErrorIfNeeded();
+
+      VShowMessage("Загрузка завершена", "Загрузка завершена!\nЕсли хотите загрузить ещё - перезапустите программу.");
+
+      this.Invoke((MethodInvoker)delegate {
+        VTabAccessChange(AppTabPageProgress, false);
+        VTabAccessChange(AppTabPageAbout, true);
+        VUnlockControl(sender);
+        CUnlock();
+      });     
     }
 
-    private void ButtonDebug_Click(object sender, EventArgs ev) {
+    private async Task UploadMusic(List<string> files, IProgress<int> progressTotal,
+    IProgress<int> progressCurrent, IProgress<string> currentWork, IProgress<string> log, string dirID) {
+      log.Report("Загрузились...");
+
+      EventHandler<HttpProgressEventArgs> currnetProgressHandler = (_s, _e) => {
+        progressCurrent.Report(_e.ProgressPercentage);
+      };
+
+      if (dirID == "0") dirID = "-" + App.session.UserID;
+
+      progressTotal.Report(0);
+      App.net.progressHandler.HttpSendProgress += currnetProgressHandler;
+
+      log.Report("Начали...");
       try {
-        App.net.Get("http://spaces.ru");
+        string url = "";
+
+        Debug.WriteLine("------ [0]");
+        
+        for (int i = 0; i < files.Count; i++) {
+          Debug.WriteLine("------ [1] {" + i + "}");
+          FileInfo f = new FileInfo(files[i]);
+          url = "";
+
+          currentWork.Report("Получаем URL загрузки...");
+          
+          Debug.WriteLine("------ [2] {" + i + "}");
+          url = await MixxerAPI.GetUploadUrl(App.session.SID + "_" + i);
+          
+
+          progressCurrent.Report(0);
+          Debug.WriteLine("------ [3] {" + i + "}");
+          log.Report("Код ответа: " + App.net.LastCodeAnswer + ", новый URL: " + url);
+
+          Debug.WriteLine("------ [4] {" + i + "}");
+          List<KeyValuePair<string, string>> keys = new List<KeyValuePair<string, string>>();
+          keys.Add(new KeyValuePair<string, string>("add", "1"));
+          keys.Add(new KeyValuePair<string, string>("dir", dirID));
+          keys.Add(new KeyValuePair<string, string>("sid", App.session.SID));
+          keys.Add(new KeyValuePair<string, string>("file", "1"));
+          keys.Add(new KeyValuePair<string, string>("name", App.session.UserName));
+          keys.Add(new KeyValuePair<string, string>("p", "1"));
+          keys.Add(new KeyValuePair<string, string>("LT", ""));
+          
+          currentWork.Report("Ссылка получена...");
+          await Task.Delay(2500);
+          currentWork.Report("Загружаем файл...");
+          log.Report("Начали загружать [" + i + "] " + " файл...");
+          Debug.WriteLine("------ [5] {" + i + "}");
+          int opCode = await App.net.PostMultipart(url, keys, new KeyValuePair<string, string>("myFile", f.ToString()));
+          
+          Debug.WriteLine("------ [6] {" + i + "}");
+          log.Report("Закончили загружать файл[" + i + "] " + " файл... Код ответа: " + App.net.LastCodeAnswer);
+          log.Report("Результат: " + Error.GetMessage(opCode));
+            
+          progressTotal.Report(i + 1);
+          log.Report("Завершение итерации...");
+          currentWork.Report("Ждём...");
+          Debug.WriteLine("------ [7] {" + i + "}");
+          await Task.Delay(2500);
+        }       
+      } catch (Exception e) {
+        log.Report("[ИСКЛЮЧЕНИЕ!] " + e.Message + " от " + e.Source);        
+      }
+
+      App.net.progressHandler.HttpReceiveProgress -= currnetProgressHandler;
+      currentWork.Report("Загрузка завершена");
+      log.Report("Отключение потока...");
+
+      Debug.WriteLine("OK");
+      return;
+    }
+
+    private void VProgressBarCurrentUpdate(int value) {
+      ProgressBarCurrent.Value = value;
+    }
+
+    private void VCurrentWorkLogUploadUpdate(string value) {      
+      TextBoxUploadLog.AppendText("\r\n" + value);
+    }
+
+    private void VProgressBarTotalUpdate(int value) {
+      LabelTotalWork.Text = "Общий прогресс: " + value + " из " + ProgressBarTotal.Maximum;
+      ProgressBarTotal.Value = value;
+    }
+
+    private void VCurrentWorkUploadUpdate(string value) {
+      LabelCurrentWork.Text = value;
+    }
+
+    private async void ButtonDebug_Click(object sender, EventArgs ev) {
+      //CDebug(sender, ev);
+
+      for (int i = 0; i < 10; i++) {
+
+        await Task.Factory.StartNew(() => {
+          Debug.WriteLine("[1] Thread 1 begin");
+          Thread.Sleep(1500);
+          Debug.WriteLine("[2] Thread 2 end");
+        });
+
+        Debug.WriteLine("[3] Main 0 between");
+
+        await Task.Factory.StartNew(() => {
+          Debug.WriteLine("[4] Thread 2 begin");
+        });
+        Debug.WriteLine("[5] Main 0 end");
+      }
+
+      return;
+      /*try {
+        string url = App.api.GetUploadUrl(App.session.SID);
+
+        List<KeyValuePair<string, string>> keys = new List<KeyValuePair<string,string>>();
+
+        keys.Add(new KeyValuePair<string,string>("add", "1"));
+        keys.Add(new KeyValuePair<string,string>("dir", "<<< ID >>>"));
+        keys.Add(new KeyValuePair<string,string>("sid", App.session.SID));
+        keys.Add(new KeyValuePair<string,string>("file", "1"));
+        keys.Add(new KeyValuePair<string,string>("name", App.session.UserName));
+        keys.Add(new KeyValuePair<string,string>("p", "1"));
+        keys.Add(new KeyValuePair<string,string>("LT", ""));
+
+        App.net.PostMultipart(url, keys, new KeyValuePair<string, string>("myFile", "c:/1.mp3"));
       } catch (Exception e) {
         //
       } finally {
         CShowErrorIfNeeded("");
-      }
+      }*/
     }
 
     private void FormApp_FormClosed(object sender, FormClosedEventArgs e) {
-      CGUIClose(sender, e);
+      //CGUIClose(sender, e);
     }
 
     private void CGUIClose(object sender, FormClosedEventArgs e) {
       App.net.Free();
     }
 
+    private void FormApp_Load(object sender, EventArgs e) {
+      // go here 
+    }
+
+    private void ButtonCancel_Click(object sender, EventArgs e) {
+    }
   }
 
   public static class App {
@@ -356,7 +545,6 @@ namespace SpacesDUpload {
 
     public static Session session;
     public static Networker net;
-    public static MixxerAPI api;
     public static Error err;
 
     private static bool workFlag = false;
@@ -377,36 +565,37 @@ namespace SpacesDUpload {
 
       Debug.WriteLine("[WARNING] Try end work, but work doesnt started");
       return false;
-    }
+    }    
   }
 
-  public class MixxerAPI {
-    private Networker net;
+  public static class MixxerAPI {
+    public static async Task<string> GetUserNameById(string id) {
+      await App.net.Get("http://" + id + ".spaces.ru/");
 
-    public MixxerAPI(ref Networker net) {
-      this.net = net;
-    }
-
-    public string GetUserNameById(string id) {
-      net.Get("http://" + id + ".spaces.ru/");
-
-      return net.GetValueByParam("name");
+      return App.net.GetValueByParam("name");
     }
 
     // 6 - music
-    public string GetUploadUrl(string sid, string type = "6") {
+    public static async Task<string> GetUploadUrl(string sid, string type = "6") {
       List<KeyValuePair<string, string>> postData = new List<KeyValuePair<string,string>>();
 
       postData.Add(new KeyValuePair<string, string>("Type", "6"));
       postData.Add(new KeyValuePair<string, string>("method", "getUploadInfo"));
-      
-      net.Post("http://spaces.ru/api/files/", postData);
+      postData.Add(new KeyValuePair<string, string>("url", DateTime.UtcNow.ToString()));
+
+      Debug.WriteLine("START GET [" + sid + "]");
+
+      await App.net.Post("http://spaces.ru/api/files/", postData);
+      //await net.Post("http://httpbin.org/post", postData).ConfigureAwait(false);
+
+      Debug.WriteLine("END GET ");
 
       String answer = "";
 
+      Debug.WriteLine("ANSWER " + App.net.Answer.ToString());
+
       try {
-        Debug.WriteLine(App.net.Answer);
-        var dict = new JavaScriptSerializer().Deserialize<Dictionary<string, dynamic>>(net.Answer.ToString());
+        var dict = new JavaScriptSerializer().Deserialize<Dictionary<string, dynamic>>(App.net.Answer.ToString());
         answer = (string)dict["url"];
       } catch (Exception e) {
         App.err.SetError(Error.Codes.WRONG_PARSE_DATA, "Empty url parse [" + e.Message + "]");
@@ -415,39 +604,39 @@ namespace SpacesDUpload {
       return answer;
     }
 
-    public List<KeyValuePair<string, string>> GetMusicDirs(string userName, string dirId) {
+    public static async Task<List<KeyValuePair<string, string>>> GetMusicDirs(string userName, string dirId) {
       List<KeyValuePair<string, string>> dict = new List<KeyValuePair<string, string>>();
 
-      //if (dirId == "0") net.Create("http://spaces.ru/music/?r=main/index&name=" + userName);
-      //else net.Create("http://spaces.ru/music/?Dir=" + dirId);
-      net.ExecuteGET();
+      string url = "http://spaces.ru/music/?r=main/index&name=" + userName;
+      if (dirId != "0") url = "http://spaces.ru/music/?Dir=" + dirId;
 
-      MatchCollection m = Regex.Matches(net.Answer, @"<a.*?</a>");
+      await App.net.Get(url);
+
+      MatchCollection m = Regex.Matches(App.net.Answer, @"<a.*?</a>");
+
+      if (m.Count == 0) App.err.SetError(Error.Codes.WRONG_PARSE_DATA, "MixxerAPI.GetMusicDirs", "Empty parse collection");
 
       foreach (Match item in m) {
         Match temp = Regex.Match(item.Value, @"Dir=(\d*).+?hover" + '"' + ">(.*?)</span>");
 
         if (temp.Groups.Count == 3 && temp.Groups[1].Value != "") {
           dict.Add(new KeyValuePair<string, string>(temp.Groups[1].Value, temp.Groups[2].Value));
-        } else {
-          //Error.SetError(Error.Codes.WRONG_PARSE_DATA, "Real size incorrect: " + temp.Groups.Count);
         }
       }
      
-      Match nav = Regex.Match(net.Answer, @"<div class=" + '"' +
+      Match nav = Regex.Match(App.net.Answer, @"<div class=" + '"' +
                              "location-bar" + '"' + ".*?<a.+?</a>.+?</div>");
 
       if (nav.Length > 0) {
         MatchCollection navCounter = Regex.Matches(nav.Value, "<*.a>");
 
         if (navCounter.Count > 3) {
-          Debug.WriteLine(nav.Value);
           Match backLink = Regex.Match(nav.Value, @".+Dir=(\d+).+?>(.+?)<.a>");
           if (backLink.Length > 0) dict.Insert(0, new KeyValuePair<string, string>(backLink.Groups[1].Value, "[вверх на уровень] " + backLink.Groups[2].Value));
         }
       }
-     
-      return dict;     
+
+      return dict;
     }
   }
 
@@ -487,30 +676,32 @@ namespace SpacesDUpload {
       valid = false;      
     }
 
-
     private bool _CheckInputSID(string sid) {
       int trashVar = 0;
       if (sid.Length != 16 || int.TryParse(sid, out trashVar)) return false;
       return true;
     }
 
-    public Session(ref Networker net, string sid) {
+    public Session() {
+      
+    }
+
+    public async Task Create(string sid) {
       _ResetSessionData();
 
       if (_CheckInputSID(sid)) {
         this.sid = sid;
 
         try {
-          net.Get("http://spaces.ru/settings/?sid=" + sid);
+          await App.net.Get("http://spaces.ru/settings/?sid=" + sid);
 
-          string temp = net.GetCookieValueByName("user_id");
+          string temp = App.net.GetCookieValueByName("user_id");
           if (temp != "") {
             
             userID = temp;
             valid = true;
 
-            MixxerAPI api = new MixxerAPI(ref net);
-            userName = api.GetUserNameById(UserID);
+            userName = await MixxerAPI.GetUserNameById(UserID);
           }
         } catch (Exception e) {
           App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "Session __constr err [e: " + e.Message + "]");
@@ -524,6 +715,9 @@ namespace SpacesDUpload {
       public const int NO_ERROR = 0;
       public const int WRONG_PARSE_DATA = 1;
       public const int TRY_COMMON_FAIL = 2;
+      public const int INCORRECT_SESSION = 3;
+      public const int WRONG_GUI_OP = 4;
+      public const int ERROR_TIMEOUT = 5;
     }
 
     public Error() {
@@ -534,9 +728,32 @@ namespace SpacesDUpload {
    
     // Data
     private int lastErrorCode = 0;
+    public int LastErrorCode {
+      get {
+        return lastErrorCode;
+      }
+    }
+
     private string extMessage = "";
+    public string ExtMessage {
+      get {
+        return extMessage;
+      }
+    }
+
     private string place = "";
+    public string Place {
+      get {
+        return place;
+      }
+    }
+
     private int errCount = 0;
+    public int ErrCount {
+      get {
+        return errCount;
+      }
+    }
 
     // Func
     public bool CheckIsError() {
@@ -544,7 +761,7 @@ namespace SpacesDUpload {
       return false;
     }
 
-    public void SetError(int code, string _place = "n/a", string _extMessage = "n/a") {
+    public void SetError(int code, string _place = "", string _extMessage = "") {
       errCount++;
       lastErrorCode = code;
       extMessage = _extMessage;
@@ -563,50 +780,45 @@ namespace SpacesDUpload {
       place = "";
     }
 
-    public string ExtMessage {
-      get {
-        return extMessage;
-      }
-    }
-
-    public string Message {
-      get {
-        string temp = "";
-        switch (lastErrorCode) {
-          case Codes.NO_ERROR: {
-            temp += "Нет ошибки";
-            break;
-          }
-
-          case Codes.WRONG_PARSE_DATA: {
-            temp += "Ошибка чтения данных";
-            break;
-          }
-
-          case Codes.TRY_COMMON_FAIL: {
-            temp += "Общая ошибка приложения";
-            break;
-          }
-
-          default: {
-            temp += "Неизвестная ошибка (код: " + lastErrorCode + ")";
-            break;
-          }
+    public static string GetMessage(int code) {
+      switch (code) {
+        case Codes.NO_ERROR: {
+          return "Нет ошибки";
         }
 
-        return temp += "\n\n--- --  Отладочная информация -- ---\nРасположение: " + place
-          + "\nИнфо: " + extMessage + "\nОшибок: " + errCount;
+        case Codes.WRONG_PARSE_DATA: {
+          return "Ошибка чтения данных";
+        }
+
+        case Codes.TRY_COMMON_FAIL: {
+          return "Общая ошибка приложения";
+        }
+
+        case Codes.INCORRECT_SESSION: {
+          return "Недействительная ссессия";
+        }
+
+        case Codes.WRONG_GUI_OP: {
+          return "Ошибка интерфейса";
+        }
+
+        default: {
+          return "Неизвестная ошибка (код: " + code + ")";
+        }
       }
-    }
+    }    
   }
 
 
   public class Networker {
     // HTTP libs vars
     private HttpClientHandler handler;
-    private HttpClient client;
     private HttpResponseMessage response;
+    public HttpClient client;
 
+    // public for binding external handlers
+    public ProgressMessageHandler progressHandler;
+        
     // HTTP opts
     private CookieContainer cookies;
     private NameValueCollection postParams;
@@ -648,24 +860,46 @@ namespace SpacesDUpload {
       handler = new HttpClientHandler();
 
       handler.AllowAutoRedirect = true;
-      handler.MaxAutomaticRedirections = 10;
+      handler.MaxAutomaticRedirections = 3;
+
+      handler.MaxRequestContentBufferSize = 4;
 
       handler.UseCookies = true;
       handler.CookieContainer = cookies;
 
       handler.Credentials = CredentialCache.DefaultCredentials;
       handler.UseDefaultCredentials = true;
-           
-      client = new HttpClient(handler);
-      client.DefaultRequestHeaders.UserAgent.ParseAdd(useragent);
 
+      progressHandler = new ProgressMessageHandler();
+
+      progressHandler.HttpSendProgress += sendProgress;
+      progressHandler.HttpReceiveProgress += recvProgress;
+
+      client = HttpClientFactory.Create(handler, progressHandler);
+      client.DefaultRequestHeaders.UserAgent.ParseAdd(useragent);
+      client.Timeout = TimeSpan.FromMinutes(30);
+      
       client.DefaultRequestHeaders.Accept.Clear();
       client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
     }
+
+    private void recvProgress(object sender, HttpProgressEventArgs e) {
+      Debug.WriteLine("NET.Recive: " + e.BytesTransferred + " / total: " + e.TotalBytes);
+    }
+
+    private void sendProgress(object sender, HttpProgressEventArgs e) {
+      Debug.WriteLine("Net.Send: " + e.BytesTransferred + " / total: " + e.TotalBytes);
+    }
      
-    public void Get(string url) {
+    private void _Clear() {
+      answer = "";
+      lastCodeAnswer = -1;
+    }
+
+    public async Task Get(string url) {
       try {
-        response = client.GetAsync(url).Result;
+        _Clear();
+        response = await client.GetAsync(url).ConfigureAwait(false);
 
         using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
           answer = stream.ReadToEnd();
@@ -673,28 +907,32 @@ namespace SpacesDUpload {
 
         lastCodeAnswer = (int)response.StatusCode;
       } catch {
-        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString());
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "Ошибка get запроса");
         throw;
       }
     }
 
-    public void Post(string url, List<KeyValuePair<string, string>> postParams) {     
+    public async Task Post(string url, List<KeyValuePair<string, string>> postParams) {     
       try {
+        _Clear();
         using (var postHeaders = new FormUrlEncodedContent(postParams)) {
-        response = client.PostAsync(url, postHeaders).Result;
+          response = await client.PostAsync(url, postHeaders).ConfigureAwait(false);
 
-        using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
-          answer = stream.ReadToEnd();
-        }
+          using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
+            answer = stream.ReadToEnd();
+          }
+
+          lastCodeAnswer = (int)response.StatusCode;
         }        
       } catch {
-        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString());
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "Ошибка post запроса");
         throw;
       }
     }
-        
-    public void PostMultipart(string url, List<KeyValuePair<string, string>> postParams, KeyValuePair<string, string> fileData) {     
+
+    public async Task<int> PostMultipart(string url, List<KeyValuePair<string, string>> postParams, KeyValuePair<string, string> fileData) {
       try {
+        _Clear();
         using (var contentData = new MultipartFormDataContent()) {
           foreach (var item in postParams) {
             contentData.Add(new StringContent(item.Value), item.Key);
@@ -703,48 +941,32 @@ namespace SpacesDUpload {
           FileInfo f = new FileInfo(fileData.Value);
           contentData.Add(new ByteArrayContent(File.ReadAllBytes(fileData.Value)), fileData.Key, f.Name);
 
-          response = client.PostAsync(url, contentData).Result;
+          response = await client.PostAsync(url, contentData);
 
           using (var stream = new StreamReader(response.Content.ReadAsStreamAsync().Result)) {
             answer = stream.ReadToEnd();
           }
+
+          lastCodeAnswer = (int)response.StatusCode;
         }
-      } catch {
-        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString());
+      } catch (TimeoutException) {
+        return Error.Codes.ERROR_TIMEOUT;
+
+      } catch (TaskCanceledException) {
+        return Error.Codes.ERROR_TIMEOUT;
+
+      } catch (Exception e) {
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "Неизвестная ошибка (" + e.Message + ")");
         throw;
       }
+      return Error.Codes.NO_ERROR;
     }
 
     public void Free() {
-      if (client != null) client.Dispose();
-      if (response != null) response.Dispose();
+      if (progressHandler != null) progressHandler.Dispose();
       if (handler != null) handler.Dispose();
-    }
-
-    [System.Obsolete("Use Get() method!!!")]
-    public void ExecuteGET() {
-      throw new Exception("OLD METHOD");
-    }
-
-    [System.Obsolete("Use Post() method!!!")]
-    public void ExecutePOST() {
-     /* request.Method = "POST";
-
-      try {
-        using (Stream rStream = request.GetRequestStream()) {
-          rStream.Write(Encoding.UTF8.GetBytes(postParams.ToString()), 0,
-                        Encoding.UTF8.GetByteCount(postParams.ToString()));
-        }
-
-        using (HttpWebResponse answer = request.GetResponse() as HttpWebResponse) {
-          using (StreamReader reader = new StreamReader(answer.GetResponseStream())) {
-            this.answer = reader.ReadToEnd();
-            this.lastCodeAnswer = (int)answer.StatusCode;
-          }
-        }
-      } catch {
-        // err
-      }*/
+      if (response != null) response.Dispose();
+      if (client != null) client.Dispose();      
     }
 
     public string GetCookieValueByName(string name) {
@@ -753,7 +975,7 @@ namespace SpacesDUpload {
           if (c.Name == name) return c.Value;
         }
       } catch (Exception e) {
-        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "GetCookieValueByName error: " + e.Message);
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "Ошибка чтения кук (" + e.Message + ")");
       }
       
       return "";
@@ -770,10 +992,10 @@ namespace SpacesDUpload {
 
     public static readonly string UPDATE_LINK = "http://spaces.ru/forums/?r=17760125";
 
-    public Updater() {
+    public async Task Create() {  
       try {
-        App.net.Get(UPDATE_LINK);
-
+        await App.net.Get(UPDATE_LINK);
+               
         Match m = Regex.Match(App.net.Answer, @"###LASTVERSION:(\d)");
 
         if (m.Groups.Count == 2) {
@@ -782,7 +1004,7 @@ namespace SpacesDUpload {
           App.err.SetError(Error.Codes.WRONG_PARSE_DATA, this.ToString(), "Err count: " + m.Groups.Count);
         }      
       } catch (Exception e) {
-      App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), e.Message);
+        App.err.SetError(Error.Codes.TRY_COMMON_FAIL, this.ToString(), "Ошибка проверки обновления");
       }
     }
 
