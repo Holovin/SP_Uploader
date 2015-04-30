@@ -212,7 +212,7 @@ namespace SpacesDUpload {
     }
 
     private void VGUIInit() {
-      this.Text = App.NAME;
+      this.Text = App.NAME + " v0." + App.VERSION;
       this.LabelAbout.Text = App.NAME;
 
       VTabAccessChange(AppTabPageUploader, false);
@@ -305,7 +305,7 @@ namespace SpacesDUpload {
       }
     }
   
-    private async void CChangeFileDir(object sender, MouseEventArgs e) {
+    private async void CChangeFileDir(object sender, EventArgs e) {
       CLock();
       VLockControl(sender);
 
@@ -328,6 +328,7 @@ namespace SpacesDUpload {
       this.Invoke((MethodInvoker)delegate {
       foreach (Control control in page.Controls) {
         control.Enabled = newValue;
+          control.Visible = newValue;
       }
 
       if (newValue) AppTabControl.SelectedTab = page;
@@ -533,7 +534,10 @@ namespace SpacesDUpload {
       // go here 
     }
 
-    private void ButtonCancel_Click(object sender, EventArgs e) {
+    private void ListViewDirs_KeyDown(object sender, KeyEventArgs e) {
+      if (e.KeyCode == Keys.Enter) {
+        CChangeFileDir(sender, e);
+      }
     }
   }
 

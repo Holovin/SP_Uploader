@@ -6,12 +6,12 @@ using System.Runtime.InteropServices;
 // набора атрибутов. Измените значения этих атрибутов, чтобы изменить сведения,
 // связанные со сборкой.
 [assembly: AssemblyTitle("Spaces.D.Upload")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Spaces.D.Upload")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("DJ_miXxXer")]
 [assembly: AssemblyProduct("Spaces.D.Upload")]
 [assembly: AssemblyCopyright("Copyright © 2015")]
-[assembly: AssemblyTrademark("")]
+[assembly: AssemblyTrademark("DJ_miXxXer")]
 [assembly: AssemblyCulture("")]
 
 // Параметр ComVisible со значением FALSE делает типы в сборке невидимыми 

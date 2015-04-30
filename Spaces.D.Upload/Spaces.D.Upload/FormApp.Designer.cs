@@ -187,6 +187,7 @@
       this.ListViewDirs.TabIndex = 2;
       this.ListViewDirs.UseCompatibleStateImageBehavior = false;
       this.ListViewDirs.View = System.Windows.Forms.View.Details;
+      this.ListViewDirs.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ListViewDirs_KeyDown);
       this.ListViewDirs.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.ListViewDirs_MouseDoubleClick);
       // 
       // СolumnHeaderID
