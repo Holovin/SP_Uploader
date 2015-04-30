@@ -280,12 +280,14 @@
       this.GroupBoxProgressLog.Size = new System.Drawing.Size(640, 135);
       this.GroupBoxProgressLog.TabIndex = 1;
       this.GroupBoxProgressLog.TabStop = false;
+      this.GroupBoxProgressLog.Text = "Вывод";
       // 
       // TextBoxUploadLog
       // 
       this.TextBoxUploadLog.Location = new System.Drawing.Point(6, 19);
       this.TextBoxUploadLog.Multiline = true;
       this.TextBoxUploadLog.Name = "TextBoxUploadLog";
+      this.TextBoxUploadLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
       this.TextBoxUploadLog.Size = new System.Drawing.Size(628, 104);
       this.TextBoxUploadLog.TabIndex = 0;
       this.TextBoxUploadLog.Text = " ";
@@ -298,36 +300,39 @@
       this.GroupBoxProgress.Controls.Add(this.ProgressBarCurrent);
       this.GroupBoxProgress.Location = new System.Drawing.Point(6, 6);
       this.GroupBoxProgress.Name = "GroupBoxProgress";
-      this.GroupBoxProgress.Size = new System.Drawing.Size(646, 159);
+      this.GroupBoxProgress.Size = new System.Drawing.Size(640, 159);
       this.GroupBoxProgress.TabIndex = 0;
       this.GroupBoxProgress.TabStop = false;
+      this.GroupBoxProgress.Text = "Прогресс загрузки";
       // 
       // LabelTotalWork
       // 
-      this.LabelTotalWork.Location = new System.Drawing.Point(20, 98);
+      this.LabelTotalWork.Location = new System.Drawing.Point(23, 84);
       this.LabelTotalWork.Name = "LabelTotalWork";
-      this.LabelTotalWork.Size = new System.Drawing.Size(347, 22);
+      this.LabelTotalWork.Size = new System.Drawing.Size(596, 22);
       this.LabelTotalWork.TabIndex = 4;
+      this.LabelTotalWork.Text = "Debug";
       // 
       // ProgressBarTotal
       // 
-      this.ProgressBarTotal.Location = new System.Drawing.Point(20, 123);
+      this.ProgressBarTotal.Location = new System.Drawing.Point(23, 110);
       this.ProgressBarTotal.Name = "ProgressBarTotal";
-      this.ProgressBarTotal.Size = new System.Drawing.Size(347, 23);
+      this.ProgressBarTotal.Size = new System.Drawing.Size(596, 23);
       this.ProgressBarTotal.TabIndex = 3;
       // 
       // LabelCurrentWork
       // 
-      this.LabelCurrentWork.Location = new System.Drawing.Point(17, 26);
+      this.LabelCurrentWork.Location = new System.Drawing.Point(23, 25);
       this.LabelCurrentWork.Name = "LabelCurrentWork";
-      this.LabelCurrentWork.Size = new System.Drawing.Size(350, 23);
+      this.LabelCurrentWork.Size = new System.Drawing.Size(611, 23);
       this.LabelCurrentWork.TabIndex = 1;
+      this.LabelCurrentWork.Text = "Debug";
       // 
       // ProgressBarCurrent
       // 
-      this.ProgressBarCurrent.Location = new System.Drawing.Point(20, 52);
+      this.ProgressBarCurrent.Location = new System.Drawing.Point(23, 50);
       this.ProgressBarCurrent.Name = "ProgressBarCurrent";
-      this.ProgressBarCurrent.Size = new System.Drawing.Size(347, 23);
+      this.ProgressBarCurrent.Size = new System.Drawing.Size(596, 23);
       this.ProgressBarCurrent.TabIndex = 0;
       // 
       // AppTabPageAbout

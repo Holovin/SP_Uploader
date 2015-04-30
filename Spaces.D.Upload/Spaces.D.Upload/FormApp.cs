@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
@@ -91,7 +92,9 @@ namespace SpacesDUpload {
               }
           }
         }, TaskCreationOptions.LongRunning);
+        this.Invoke((MethodInvoker)delegate {
         ListBoxFiles.Items.AddRange(itemCache.ToArray());
+        });
      
         VUpdateFilesInfo();
         VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (modal.FileNames.GetLength(0) - added));
@@ -127,7 +130,9 @@ namespace SpacesDUpload {
           }
         }, TaskCreationOptions.LongRunning);
 
+        this.Invoke((MethodInvoker)delegate {
         ListBoxFiles.Items.AddRange(itemCache.ToArray());
+        });
 
         VUpdateFilesInfo();
         VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (files.Length - added));
@@ -136,6 +141,7 @@ namespace SpacesDUpload {
     }
 
     private void VUpdateFilesInfo() {
+      this.Invoke((MethodInvoker)delegate {
       float size = 0;
 
       if (ListBoxFiles.Items.Count < 1) VLockControl(GroupBoxSpacDirs);
@@ -148,15 +154,18 @@ namespace SpacesDUpload {
 
       LabelFilesInfo.Text = "Файлов: "+ ListBoxFiles.Items.Count +
         " | Общий размер: " + size + " МБ";
+      });
     }
 
     private void VUpdateText(int newVersion = 0) {
+      this.Invoke((MethodInvoker)delegate {
       String temp = "Текущая версия: " + App.VERSION + '\n' + "Актуальная версия: ";
 
       if (newVersion != 0) temp += newVersion;
       else temp += "?";
 
       LabelVersion.Text = temp;
+      });
     }
 
     private void CClearFilesList(object sender, EventArgs e) {
@@ -193,7 +202,7 @@ namespace SpacesDUpload {
       await up.Create();
             
       if (App.err.CheckIsError()) {
-        CShowErrorIfNeeded();
+        CShowErrorIfNeeded("");
       } else {
         VShowMessage("Проверка обновлений", up.CompareVersions(App.VERSION));
       }
@@ -204,16 +213,23 @@ namespace SpacesDUpload {
     }
 
     private void VShowMessage(string caption, string message) {
+      this.Invoke((MethodInvoker)delegate {
       MessageBox.Show(message, caption);
+      });
     }
 
     private void VClearFilesList() {
+      this.Invoke((MethodInvoker)delegate {
       ListBoxFiles.Items.Clear();
+      });
     }
 
     private void VGUIInit() {
-      this.Text = App.NAME + " v0." + App.VERSION;
+      this.Text = VGetAppLabel();
       this.LabelAbout.Text = App.NAME;
+
+      if (App.DEV_MODE_ENABLED) ButtonDebug.Visible = true;
+      else ButtonDebug.Visible = false;
 
       VTabAccessChange(AppTabPageUploader, false);
       VTabAccessChange(AppTabPageProgress, false);
@@ -243,19 +259,25 @@ namespace SpacesDUpload {
 
     private void VUnlock() {
       this.Invoke((MethodInvoker)delegate {
-      this.Text = App.NAME;
+        this.Text = VGetAppLabel();
       });
     }
 
-    private void CShowErrorIfNeeded(string errMessage = "") {
+    private void CShowErrorIfNeeded(string debugMessage = "") {
       if (App.err.CheckIsError()) {
         string s = "Сообщение: " + Error.GetMessage(App.err.LastErrorCode);
 
         if (App.err.ExtMessage.Length > 1) s += "\nИнформация: " + App.err.ExtMessage;
-        if (errMessage.Length > 1) s += "\n\nДоп. информация: " + errMessage;
         
-        VShowMessage("Ошибка приложения! (" + App.err.ErrCount + ")", s);
+        if (App.DEV_MODE_ENABLED) {
+          if (debugMessage.Length > 1) s += "\n\nDebug msg: " + debugMessage;
+          if (App.err.Place.Length > 1) s += "\nAt: " + App.err.Place;
       }
+        
+        VShowMessage("Ошибка приложения! (c: " + App.err.ErrCount + ")", s);
+      }
+
+      App.err.Reset();
     }
 
     private async void CAuth(object sender, EventArgs e) {
@@ -325,6 +347,8 @@ namespace SpacesDUpload {
     }
 
     private void VTabAccessChange(TabPage page, bool newValue) {
+      if (App.DEV_MODE_ENABLED) return;
+
       this.Invoke((MethodInvoker)delegate {
       foreach (Control control in page.Controls) {
         control.Enabled = newValue;
@@ -333,6 +357,10 @@ namespace SpacesDUpload {
 
       if (newValue) AppTabControl.SelectedTab = page;
       });
+    }
+
+    private string VGetAppLabel() {
+      return App.NAME + " v0." + App.VERSION + (App.DEV_MODE_ENABLED == true ? " [developer mode]" : "");
     }
 
     private async void CUpload(object sender, EventArgs e) {
@@ -380,15 +408,12 @@ namespace SpacesDUpload {
       await UploadMusic(files, progressIndicatorTotal, progressIndicatorCurrent,
         progressIndicatorCurrentTask, progressIndicatorCurrentLog, dirID).ConfigureAwait(false);
      
-      CShowErrorIfNeeded();
+      CShowErrorIfNeeded("Error at end load");
 
       VShowMessage("Загрузка завершена", "Загрузка завершена!\nЕсли хотите загрузить ещё - перезапустите программу.");
 
-        VTabAccessChange(AppTabPageProgress, false);
-        VTabAccessChange(AppTabPageAbout, true);
         VUnlockControl(sender);
         CUnlock();
-
     }
 
     private async Task UploadMusic(List<string> files, IProgress<int> progressTotal,
@@ -410,6 +435,7 @@ namespace SpacesDUpload {
       int i = 0, errorsCount = 0;
         
       while (i < files.Count && errorsCount < MAX_ERR_COUNT) {
+        log.Report("__________________________");
         try {
           FileInfo f = new FileInfo(files[i]);
           url = "";
@@ -420,6 +446,12 @@ namespace SpacesDUpload {
           
           url = await MixxerAPI.GetUploadUrl(App.session.SID + "_" + i);
           
+          if (url == string.Empty || App.err.LastErrorCode == Error.Codes.WRONG_PARSE_DATA) {
+            log.Report("[Ошибка " + errorsCount + "] Ссылка не получена...");
+            errorsCount++;
+            continue;
+          }
+
           log.Report("Ссылка для файла получена...");
 
           List<KeyValuePair<string, string>> keys = new List<KeyValuePair<string, string>>();
@@ -437,7 +469,6 @@ namespace SpacesDUpload {
           currentWork.Report("Загружаем " + f.Name + "...");
           log.Report("Начали загружать [" + i + "] " + " файл...");
 
-          Debug.WriteLine("------ [5] {" + i + "}");
           int opCode = await App.net.PostMultipart(url, keys, new KeyValuePair<string, string>("myFile", f.ToString()));
           
           log.Report("Закончили загружать файл (" + App.net.LastCodeAnswer + ")");
@@ -489,48 +520,11 @@ namespace SpacesDUpload {
     }
 
     private async void ButtonDebug_Click(object sender, EventArgs ev) {
-      //CDebug(sender, ev);
-
-      for (int i = 0; i < 10; i++) {
-
-        await Task.Factory.StartNew(() => {
-          Debug.WriteLine("[1] Thread 1 begin");
-          Thread.Sleep(1500);
-          Debug.WriteLine("[2] Thread 2 end");
-        });
-
-        Debug.WriteLine("[3] Main 0 between");
-
-        await Task.Factory.StartNew(() => {
-          Debug.WriteLine("[4] Thread 2 begin");
-        });
-        Debug.WriteLine("[5] Main 0 end");
-      }
-
-      return;
-      /*try {
-        string url = App.api.GetUploadUrl(App.session.SID);
-
-        List<KeyValuePair<string, string>> keys = new List<KeyValuePair<string,string>>();
-
-        keys.Add(new KeyValuePair<string,string>("add", "1"));
-        keys.Add(new KeyValuePair<string,string>("dir", "<<< ID >>>"));
-        keys.Add(new KeyValuePair<string,string>("sid", App.session.SID));
-        keys.Add(new KeyValuePair<string,string>("file", "1"));
-        keys.Add(new KeyValuePair<string,string>("name", App.session.UserName));
-        keys.Add(new KeyValuePair<string,string>("p", "1"));
-        keys.Add(new KeyValuePair<string,string>("LT", ""));
-
-        App.net.PostMultipart(url, keys, new KeyValuePair<string, string>("myFile", "c:/1.mp3"));
-      } catch (Exception e) {
-        //
-      } finally {
-        CShowErrorIfNeeded("");
-      }*/
+      await MixxerAPI.GetUploadUrl(App.session.SID);
     }
 
     private void FormApp_FormClosed(object sender, FormClosedEventArgs e) {
-      //CGUIClose(sender, e);
+      // ?
     }
 
     private void CGUIClose(object sender, FormClosedEventArgs e) {
@@ -553,6 +547,8 @@ namespace SpacesDUpload {
     public static class Const {
       public const int maxFileSize = 62914560;
     }
+
+    public static readonly bool DEV_MODE_ENABLED = true;
 
     public static readonly string NAME = "Spaces.D.MusicUploader";
     public static readonly string AUTHOR = "DJ_miXxXer";
@@ -601,22 +597,25 @@ namespace SpacesDUpload {
       postData.Add(new KeyValuePair<string, string>("method", "getUploadInfo"));
       postData.Add(new KeyValuePair<string, string>("url", DateTime.UtcNow.ToString()));
 
-      Debug.WriteLine("START GET [" + sid + "]");
-
+      try {
       await App.net.Post("http://spaces.ru/api/files/", postData);
-      //await net.Post("http://httpbin.org/post", postData).ConfigureAwait(false);
-
-      Debug.WriteLine("END GET ");
+      }
+      catch {
+        App.err.SetError(Error.Codes.NETWORK_ERROR, "API.GetUploadURL.Post", "Нет ответа от spaces.ru");
+        throw;        
+      }
 
       String answer = "";
 
-      Debug.WriteLine("ANSWER " + App.net.Answer.ToString());
-
       try {
-        var dict = new JavaScriptSerializer().Deserialize<Dictionary<string, dynamic>>(App.net.Answer.ToString());
-        answer = (string)dict["url"];
-      } catch (Exception e) {
-        App.err.SetError(Error.Codes.WRONG_PARSE_DATA, "Empty url parse [" + e.Message + "]");
+        JObject o = JObject.Parse(App.net.Answer.ToString());
+        answer = o["url"].ToString();
+      } catch {
+        App.err.SetError(Error.Codes.WRONG_PARSE_DATA, "API.GetUploadURL.Parse", "Некорректные данные");
+      }
+
+      if (answer == string.Empty) {
+        App.err.SetError(Error.Codes.WRONG_PARSE_DATA, "API.GetUploadURL.Parse", "Некорректные данные");
       }
            
       return answer;
@@ -736,6 +735,7 @@ namespace SpacesDUpload {
       public const int INCORRECT_SESSION = 3;
       public const int WRONG_GUI_OP = 4;
       public const int ERROR_TIMEOUT = 5;
+      public const int NETWORK_ERROR = 6;
     }
 
     public Error() {
@@ -779,6 +779,13 @@ namespace SpacesDUpload {
       return false;
     }
 
+
+    /// <summary>
+    /// Setting app-error values
+    /// </summary>
+    /// <param name="code">Error code (Erorr.Code.*)</param>
+    /// <param name="_place">[Debug] Class name</param>
+    /// <param name="_extMessage">Message to user</param>
     public void SetError(int code, string _place = "", string _extMessage = "") {
       errCount++;
       lastErrorCode = code;
@@ -818,6 +825,10 @@ namespace SpacesDUpload {
 
         case Codes.WRONG_GUI_OP: {
           return "Ошибка интерфейса";
+        }
+
+        case Codes.NETWORK_ERROR: {
+          return "Ошибка сети";
         }
 
         default: {
