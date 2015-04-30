@@ -393,8 +393,7 @@ namespace SpacesDUpload {
 
     private async Task UploadMusic(List<string> files, IProgress<int> progressTotal,
     IProgress<int> progressCurrent, IProgress<string> currentWork, IProgress<string> log, string dirID) {
-      log.Report("Загрузились...");
-
+      const int MAX_ERR_COUNT = 3;
       EventHandler<HttpProgressEventArgs> currnetProgressHandler = (_s, _e) => {
         progressCurrent.Report(_e.ProgressPercentage);
       };
@@ -404,28 +403,25 @@ namespace SpacesDUpload {
       progressTotal.Report(0);
       App.net.progressHandler.HttpSendProgress += currnetProgressHandler;
 
-      log.Report("Начали...");
-      try {
-        string url = "";
+      log.Report("Запуск...");
 
-        Debug.WriteLine("------ [0]");
+      // init
+      string url = "";        
+      int i = 0, errorsCount = 0;
         
-        for (int i = 0; i < files.Count; i++) {
-          Debug.WriteLine("------ [1] {" + i + "}");
+      while (i < files.Count && errorsCount < MAX_ERR_COUNT) {
+        try {
           FileInfo f = new FileInfo(files[i]);
           url = "";
 
+          log.Report("Текущий файл: " + f.Name + " [" + i + "]");
           currentWork.Report("Получаем URL загрузки...");
+          progressCurrent.Report(0);
           
-          Debug.WriteLine("------ [2] {" + i + "}");
           url = await MixxerAPI.GetUploadUrl(App.session.SID + "_" + i);
           
+          log.Report("Ссылка для файла получена...");
 
-          progressCurrent.Report(0);
-          Debug.WriteLine("------ [3] {" + i + "}");
-          log.Report("Код ответа: " + App.net.LastCodeAnswer + ", новый URL: " + url);
-
-          Debug.WriteLine("------ [4] {" + i + "}");
           List<KeyValuePair<string, string>> keys = new List<KeyValuePair<string, string>>();
           keys.Add(new KeyValuePair<string, string>("add", "1"));
           keys.Add(new KeyValuePair<string, string>("dir", dirID));
@@ -435,32 +431,43 @@ namespace SpacesDUpload {
           keys.Add(new KeyValuePair<string, string>("p", "1"));
           keys.Add(new KeyValuePair<string, string>("LT", ""));
           
-          currentWork.Report("Ссылка получена...");
+          // need for void error "too fast" from spaces
           await Task.Delay(2500);
-          currentWork.Report("Загружаем файл...");
+
+          currentWork.Report("Загружаем " + f.Name + "...");
           log.Report("Начали загружать [" + i + "] " + " файл...");
+
           Debug.WriteLine("------ [5] {" + i + "}");
           int opCode = await App.net.PostMultipart(url, keys, new KeyValuePair<string, string>("myFile", f.ToString()));
           
-          Debug.WriteLine("------ [6] {" + i + "}");
-          log.Report("Закончили загружать файл[" + i + "] " + " файл... Код ответа: " + App.net.LastCodeAnswer);
+          log.Report("Закончили загружать файл (" + App.net.LastCodeAnswer + ")");
           log.Report("Результат: " + Error.GetMessage(opCode));
             
+          if (opCode == Error.Codes.NO_ERROR) {
           progressTotal.Report(i + 1);
-          log.Report("Завершение итерации...");
-          currentWork.Report("Ждём...");
-          Debug.WriteLine("------ [7] {" + i + "}");
-          await Task.Delay(2500);
+            i++;
+          } else {
+            log.Report("Пробуем ещё раз... (всего ошибок: " + errorsCount + ")");
+            errorsCount++;
         }       
+          await Task.Delay(2500);
+
       } catch (Exception e) {
-        log.Report("[ИСКЛЮЧЕНИЕ!] " + e.Message + " от " + e.Source);        
+          log.Report("Ошибка при загрузке (" + e.Message + ") от (" + e.Source + ")");
+          errorsCount++;
+        }
+      }
+
+      if (errorsCount == MAX_ERR_COUNT) {
+        log.Report("Загрузка остановлена из-за большого количества ошибок...\n" + 
+                   "(результат: " + i + "/" + files.Count + ")");
+      } else {
+        log.Report("Загрузка завершена без ошибок!");
       }
 
       App.net.progressHandler.HttpReceiveProgress -= currnetProgressHandler;
-      currentWork.Report("Загрузка завершена");
-      log.Report("Отключение потока...");
-
-      Debug.WriteLine("OK");
+      currentWork.Report("Загрузка завершена!");
+      log.Report("Спасибо :)");
       return;
     }
 
@@ -469,7 +476,7 @@ namespace SpacesDUpload {
     }
 
     private void VCurrentWorkLogUploadUpdate(string value) {      
-      TextBoxUploadLog.AppendText("\r\n" + value);
+      TextBoxUploadLog.AppendText("\r\n[" + DateTime.Now.ToString("HH:mm:ss") + "] " + value);
     }
 
     private void VProgressBarTotalUpdate(int value) {
