@@ -169,15 +169,19 @@ namespace SpacesDUpload {
     }
 
     private void VLockControl(object sender) {
+      this.Invoke((MethodInvoker)delegate {
       Control control = sender as Control;
       if (control == null) return;
       control.Enabled = false;
+      });
     }
 
     private void VUnlockControl(object sender) {
+      this.Invoke((MethodInvoker)delegate {
       Control control = sender as Control;
       if (control == null) return;
       control.Enabled = true;
+      });
     }
 
     private async void CUpdateChecker(object sender, EventArgs e) {
@@ -226,8 +230,10 @@ namespace SpacesDUpload {
     }
 
     private void VLock() {
+      this.Invoke((MethodInvoker)delegate {
       this.Text += " [...]";
       Application.DoEvents();
+      });
     }
 
     private void CUnlock() {
@@ -236,13 +242,13 @@ namespace SpacesDUpload {
     }
 
     private void VUnlock() {
+      this.Invoke((MethodInvoker)delegate {
       this.Text = App.NAME;
+      });
     }
 
     private void CShowErrorIfNeeded(string errMessage = "") {
       if (App.err.CheckIsError()) {
-        // Расположение: " + place
-
         string s = "Сообщение: " + Error.GetMessage(App.err.LastErrorCode);
 
         if (App.err.ExtMessage.Length > 1) s += "\nИнформация: " + App.err.ExtMessage;
@@ -319,11 +325,13 @@ namespace SpacesDUpload {
     }
 
     private void VTabAccessChange(TabPage page, bool newValue) {
+      this.Invoke((MethodInvoker)delegate {
       foreach (Control control in page.Controls) {
         control.Enabled = newValue;
       }
 
       if (newValue) AppTabControl.SelectedTab = page;
+      });
     }
 
     private async void CUpload(object sender, EventArgs e) {
@@ -375,12 +383,11 @@ namespace SpacesDUpload {
 
       VShowMessage("Загрузка завершена", "Загрузка завершена!\nЕсли хотите загрузить ещё - перезапустите программу.");
 
-      this.Invoke((MethodInvoker)delegate {
         VTabAccessChange(AppTabPageProgress, false);
         VTabAccessChange(AppTabPageAbout, true);
         VUnlockControl(sender);
         CUnlock();
-      });     
+
     }
 
     private async Task UploadMusic(List<string> files, IProgress<int> progressTotal,
