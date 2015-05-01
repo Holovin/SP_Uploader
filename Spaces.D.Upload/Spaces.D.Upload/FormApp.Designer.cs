@@ -23,6 +23,7 @@
     /// содержимое данного метода при помощи редактора кода.
     /// </summary>
     private void InitializeComponent() {
+      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormApp));
       this.AppTabControl = new System.Windows.Forms.TabControl();
       this.AppTabPageAuth = new System.Windows.Forms.TabPage();
       this.GroupBoxAuth = new System.Windows.Forms.GroupBox();
@@ -45,12 +46,15 @@
       this.GroupBoxProgressLog = new System.Windows.Forms.GroupBox();
       this.TextBoxUploadLog = new System.Windows.Forms.TextBox();
       this.GroupBoxProgress = new System.Windows.Forms.GroupBox();
+      this.ButtonCancel = new System.Windows.Forms.Button();
+      this.LabelUploadedKB = new System.Windows.Forms.Label();
       this.LabelTotalWork = new System.Windows.Forms.Label();
       this.ProgressBarTotal = new System.Windows.Forms.ProgressBar();
       this.LabelCurrentWork = new System.Windows.Forms.Label();
       this.ProgressBarCurrent = new System.Windows.Forms.ProgressBar();
       this.AppTabPageAbout = new System.Windows.Forms.TabPage();
       this.GroupBoxUpdate = new System.Windows.Forms.GroupBox();
+      this.ButtonRestart = new System.Windows.Forms.Button();
       this.LabelVersion = new System.Windows.Forms.Label();
       this.ButtonUpdateCheck = new System.Windows.Forms.Button();
       this.GroupBoxAbout = new System.Windows.Forms.GroupBox();
@@ -211,13 +215,13 @@
       this.GroupBoxFiles.Size = new System.Drawing.Size(387, 306);
       this.GroupBoxFiles.TabIndex = 0;
       this.GroupBoxFiles.TabStop = false;
-      this.GroupBoxFiles.Text = "Файлы для загрузки";
+      this.GroupBoxFiles.Text = "Музыкальные файлы для загрузки (*.mp3)";
       // 
       // ButtonFilesClear
       // 
       this.ButtonFilesClear.Location = new System.Drawing.Point(6, 277);
       this.ButtonFilesClear.Name = "ButtonFilesClear";
-      this.ButtonFilesClear.Size = new System.Drawing.Size(114, 23);
+      this.ButtonFilesClear.Size = new System.Drawing.Size(234, 23);
       this.ButtonFilesClear.TabIndex = 4;
       this.ButtonFilesClear.Text = "Очистить список";
       this.ButtonFilesClear.UseVisualStyleBackColor = true;
@@ -290,10 +294,11 @@
       this.TextBoxUploadLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
       this.TextBoxUploadLog.Size = new System.Drawing.Size(628, 104);
       this.TextBoxUploadLog.TabIndex = 0;
-      this.TextBoxUploadLog.Text = " ";
       // 
       // GroupBoxProgress
       // 
+      this.GroupBoxProgress.Controls.Add(this.ButtonCancel);
+      this.GroupBoxProgress.Controls.Add(this.LabelUploadedKB);
       this.GroupBoxProgress.Controls.Add(this.LabelTotalWork);
       this.GroupBoxProgress.Controls.Add(this.ProgressBarTotal);
       this.GroupBoxProgress.Controls.Add(this.LabelCurrentWork);
@@ -304,6 +309,26 @@
       this.GroupBoxProgress.TabIndex = 0;
       this.GroupBoxProgress.TabStop = false;
       this.GroupBoxProgress.Text = "Прогресс загрузки";
+      // 
+      // ButtonCancel
+      // 
+      this.ButtonCancel.Location = new System.Drawing.Point(522, 110);
+      this.ButtonCancel.Name = "ButtonCancel";
+      this.ButtonCancel.Size = new System.Drawing.Size(101, 23);
+      this.ButtonCancel.TabIndex = 1;
+      this.ButtonCancel.Text = "Остановить";
+      this.ButtonCancel.UseVisualStyleBackColor = true;
+      this.ButtonCancel.Click += new System.EventHandler(this.ButtonCancel_Click);
+      // 
+      // LabelUploadedKB
+      // 
+      this.LabelUploadedKB.Location = new System.Drawing.Point(519, 50);
+      this.LabelUploadedKB.Name = "LabelUploadedKB";
+      this.LabelUploadedKB.Padding = new System.Windows.Forms.Padding(0, 4, 0, 0);
+      this.LabelUploadedKB.Size = new System.Drawing.Size(100, 22);
+      this.LabelUploadedKB.TabIndex = 5;
+      this.LabelUploadedKB.Text = "00000 / 00000 kb";
+      this.LabelUploadedKB.TextAlign = System.Drawing.ContentAlignment.TopRight;
       // 
       // LabelTotalWork
       // 
@@ -317,7 +342,7 @@
       // 
       this.ProgressBarTotal.Location = new System.Drawing.Point(23, 110);
       this.ProgressBarTotal.Name = "ProgressBarTotal";
-      this.ProgressBarTotal.Size = new System.Drawing.Size(596, 23);
+      this.ProgressBarTotal.Size = new System.Drawing.Size(490, 23);
       this.ProgressBarTotal.TabIndex = 3;
       // 
       // LabelCurrentWork
@@ -332,7 +357,7 @@
       // 
       this.ProgressBarCurrent.Location = new System.Drawing.Point(23, 50);
       this.ProgressBarCurrent.Name = "ProgressBarCurrent";
-      this.ProgressBarCurrent.Size = new System.Drawing.Size(596, 23);
+      this.ProgressBarCurrent.Size = new System.Drawing.Size(490, 23);
       this.ProgressBarCurrent.TabIndex = 0;
       // 
       // AppTabPageAbout
@@ -349,6 +374,7 @@
       // 
       // GroupBoxUpdate
       // 
+      this.GroupBoxUpdate.Controls.Add(this.ButtonRestart);
       this.GroupBoxUpdate.Controls.Add(this.LabelVersion);
       this.GroupBoxUpdate.Controls.Add(this.ButtonUpdateCheck);
       this.GroupBoxUpdate.Location = new System.Drawing.Point(411, 6);
@@ -357,6 +383,16 @@
       this.GroupBoxUpdate.TabIndex = 5;
       this.GroupBoxUpdate.TabStop = false;
       this.GroupBoxUpdate.Text = "Обновления";
+      // 
+      // ButtonRestart
+      // 
+      this.ButtonRestart.Location = new System.Drawing.Point(9, 251);
+      this.ButtonRestart.Name = "ButtonRestart";
+      this.ButtonRestart.Size = new System.Drawing.Size(153, 36);
+      this.ButtonRestart.TabIndex = 3;
+      this.ButtonRestart.Text = "Перезапустить приложение";
+      this.ButtonRestart.UseVisualStyleBackColor = true;
+      this.ButtonRestart.Click += new System.EventHandler(this.ButtonRestart_Click);
       // 
       // LabelVersion
       // 
@@ -395,8 +431,9 @@
       this.LabelAboutText.Name = "LabelAboutText";
       this.LabelAboutText.Size = new System.Drawing.Size(384, 185);
       this.LabelAboutText.TabIndex = 5;
-      this.LabelAboutText.Text = "Программа распространяется бесплатно.\r\n\r\nНо если вам понравилось это приложение, " +
-    "вы можете пожертвовать деньги на её развитие:\r\nZ169128650419\r\nR213374554173";
+      this.LabelAboutText.Text = "by Alex Holovin [DJ_miXxXer]\r\n\r\nПрограмма распространяется бесплатно.\r\n\r\nНо если " +
+    "вам понравилось это приложение, вы можете пожертвовать деньги на её развитие:\r\nZ" +
+    "169128650419\r\nR213374554173";
       // 
       // LabelLicense
       // 
@@ -410,12 +447,12 @@
       // 
       // LabelAuthor
       // 
-      this.LabelAuthor.Location = new System.Drawing.Point(6, 45);
+      this.LabelAuthor.Location = new System.Drawing.Point(12, 45);
       this.LabelAuthor.Name = "LabelAuthor";
-      this.LabelAuthor.Size = new System.Drawing.Size(387, 23);
+      this.LabelAuthor.Size = new System.Drawing.Size(381, 23);
       this.LabelAuthor.TabIndex = 3;
       this.LabelAuthor.TabStop = true;
-      this.LabelAuthor.Text = "by DJ_miXxXer";
+      this.LabelAuthor.Text = "Нажмите для перехода на сайт автора";
       this.LabelAuthor.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.LabelAuthor_LinkClicked);
       // 
       // LabelAbout
@@ -425,7 +462,7 @@
       this.LabelAbout.Name = "LabelAbout";
       this.LabelAbout.Size = new System.Drawing.Size(388, 29);
       this.LabelAbout.TabIndex = 0;
-      this.LabelAbout.Text = "Spaces.D.Uploader";
+      this.LabelAbout.Text = "D.MusicUploader";
       // 
       // FormApp
       // 
@@ -434,12 +471,11 @@
       this.ClientSize = new System.Drawing.Size(684, 362);
       this.Controls.Add(this.AppTabControl);
       this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+      this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
       this.MaximizeBox = false;
       this.Name = "FormApp";
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-      this.Text = "Spaces.D.Uploader";
-      this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.FormApp_FormClosed);
-      this.Load += new System.EventHandler(this.FormApp_Load);
+      this.Text = "D.MusicUploader";
       this.Shown += new System.EventHandler(this.FormApp_Shown);
       this.AppTabControl.ResumeLayout(false);
       this.AppTabPageAuth.ResumeLayout(false);
@@ -496,6 +532,9 @@
     private System.Windows.Forms.Label LabelLicense;
     private System.Windows.Forms.GroupBox GroupBoxProgressLog;
     private System.Windows.Forms.TextBox TextBoxUploadLog;
+    private System.Windows.Forms.Label LabelUploadedKB;
+    private System.Windows.Forms.Button ButtonCancel;
+    private System.Windows.Forms.Button ButtonRestart;
   }
 }
 

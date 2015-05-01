@@ -12,7 +12,7 @@ namespace SpacesDUpload {
     static void Main() {
       Application.EnableVisualStyles();
       Application.SetCompatibleTextRenderingDefault(false);
-      Application.Run(new FormApp());
+      Application.Run(new FormApp());      
     }
   }
 }

@@ -23,6 +23,7 @@
     /// the contents of this method with the code editor.
     /// </summary>
     private void InitializeComponent() {
+      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormModal));
       this.TextBox = new System.Windows.Forms.TextBox();
       this.LabelText = new System.Windows.Forms.Label();
       this.Button = new System.Windows.Forms.Button();
@@ -66,6 +67,7 @@
       this.Controls.Add(this.LabelText);
       this.Controls.Add(this.TextBox);
       this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+      this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
       this.MaximizeBox = false;
       this.MaximumSize = new System.Drawing.Size(300, 200);
       this.MinimizeBox = false;
