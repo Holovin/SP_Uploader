@@ -19,6 +19,7 @@ namespace SpacesDUpload {
 
       this.Text = caption;
       this.LabelText.Text = message;
+      this.DialogResult = System.Windows.Forms.DialogResult.Cancel;
     }
 
     public string InputText {

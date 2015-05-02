@@ -27,6 +27,7 @@
       this.AppTabControl = new System.Windows.Forms.TabControl();
       this.AppTabPageAuth = new System.Windows.Forms.TabPage();
       this.GroupBoxAuth = new System.Windows.Forms.GroupBox();
+      this.ButtonLoginFirefox = new System.Windows.Forms.Button();
       this.ButtonDebug = new System.Windows.Forms.Button();
       this.ButtonAuth = new System.Windows.Forms.Button();
       this.AppTabPageUploader = new System.Windows.Forms.TabPage();
@@ -101,6 +102,7 @@
       // 
       // GroupBoxAuth
       // 
+      this.GroupBoxAuth.Controls.Add(this.ButtonLoginFirefox);
       this.GroupBoxAuth.Controls.Add(this.ButtonDebug);
       this.GroupBoxAuth.Controls.Add(this.ButtonAuth);
       this.GroupBoxAuth.Location = new System.Drawing.Point(6, 6);
@@ -109,6 +111,16 @@
       this.GroupBoxAuth.TabIndex = 1;
       this.GroupBoxAuth.TabStop = false;
       this.GroupBoxAuth.Text = "Авторизация";
+      // 
+      // ButtonLoginFirefox
+      // 
+      this.ButtonLoginFirefox.Location = new System.Drawing.Point(133, 33);
+      this.ButtonLoginFirefox.Name = "ButtonLoginFirefox";
+      this.ButtonLoginFirefox.Size = new System.Drawing.Size(92, 48);
+      this.ButtonLoginFirefox.TabIndex = 2;
+      this.ButtonLoginFirefox.Text = "Войти через Firefox";
+      this.ButtonLoginFirefox.UseVisualStyleBackColor = true;
+      this.ButtonLoginFirefox.Click += new System.EventHandler(this.ButtonLoginFirefox_Click);
       // 
       // ButtonDebug
       // 
@@ -125,9 +137,9 @@
       // 
       this.ButtonAuth.Location = new System.Drawing.Point(20, 33);
       this.ButtonAuth.Name = "ButtonAuth";
-      this.ButtonAuth.Size = new System.Drawing.Size(99, 38);
+      this.ButtonAuth.Size = new System.Drawing.Size(92, 48);
       this.ButtonAuth.TabIndex = 0;
-      this.ButtonAuth.Text = "Войти";
+      this.ButtonAuth.Text = "Войти с помощью SID";
       this.ButtonAuth.UseVisualStyleBackColor = true;
       this.ButtonAuth.Click += new System.EventHandler(this.ButtonAuth_Click);
       // 
@@ -182,6 +194,7 @@
       this.ListViewDirs.FullRowSelect = true;
       this.ListViewDirs.GridLines = true;
       this.ListViewDirs.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
+      this.ListViewDirs.HideSelection = false;
       this.ListViewDirs.LabelWrap = false;
       this.ListViewDirs.Location = new System.Drawing.Point(6, 19);
       this.ListViewDirs.MultiSelect = false;
@@ -535,6 +548,7 @@
     private System.Windows.Forms.Label LabelUploadedKB;
     private System.Windows.Forms.Button ButtonCancel;
     private System.Windows.Forms.Button ButtonRestart;
+    private System.Windows.Forms.Button ButtonLoginFirefox;
   }
 }
 

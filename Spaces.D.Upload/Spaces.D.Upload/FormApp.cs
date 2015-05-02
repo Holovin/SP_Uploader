@@ -1,7 +1,9 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Data.SQLite;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -15,17 +17,28 @@ using System.Windows.Forms;
 namespace SpacesDUpload {
   public partial class FormApp: Form {
 
-    public FormApp() {      
+    public FormApp() {
       InitializeComponent();
     }
 
-    private void ButtonUpdateCheck_Click(object sender, EventArgs e) {    
+    private void ButtonUpdateCheck_Click(object sender, EventArgs e) {
       CUpdateChecker(sender, e);
     }
 
-    private void FormApp_Shown(object sender, EventArgs e) {
+    private void FormApp_Shown(object sender, EventArgs e) {      
       CGUIInit();
     }
+
+    private bool CNETVersionCheck() {
+	    using (RegistryKey ndpKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32).OpenSubKey("SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full\\")) {
+		    int releaseKey = Convert.ToInt32(ndpKey.GetValue("Release"));
+		    if (releaseKey >= App.Const.MIN_NET_VERSION) {
+          return true;
+		    }
+	    }
+
+      return false;
+    }      
 
     private void LabelAuthor_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
       Process.Start(App.Const.AUTHOR_URL);
@@ -51,13 +64,19 @@ namespace SpacesDUpload {
       CChangeFileDir(sender, e);
     }
 
-    private void ButtonUpload_Click(object sender, EventArgs e) {     
-      CUpload(sender, e);      
+    private void ButtonUpload_Click(object sender, EventArgs e) {
+      CUpload(sender, e);
     }
 
     private void CGUIInit() {
+      if (!CNETVersionCheck()) {
+        VShowMessage("Ошибка запуска", "Для запуска приложения требуется установленный\n.NET Framework 4.5 и/или выше. Приложение будет закрыто.");
+        this.Close();
+      }
+
       App.net = new Networker(App.Const.UA);
       App.err = new Error();
+      App.session = new Session();
 
       VGUIInit();
       VUpdateText();
@@ -77,7 +96,7 @@ namespace SpacesDUpload {
       modal.InitialDirectory = Directory.GetCurrentDirectory();
       modal.Multiselect = true;
       modal.Title = "Выберите файлы";
-     
+
       if (modal.ShowDialog() == DialogResult.OK) {
         FileInfo f;
         int added = 0;
@@ -86,16 +105,16 @@ namespace SpacesDUpload {
         await Task.Factory.StartNew(() => {
           foreach (string item in modal.FileNames) {
             f = new FileInfo(item);
-              if (f.Length < App.Const.maxFileSize) {
-                added++;
-                itemCache.Add(item);
-              }
+            if (f.Length < App.Const.maxFileSize) {
+              added++;
+              itemCache.Add(item);
+            }
           }
         }, TaskCreationOptions.LongRunning);
         this.Invoke((MethodInvoker)delegate {
           ListBoxFiles.Items.AddRange(itemCache.ToArray());
         });
-     
+
         VUpdateFilesInfo();
         VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (modal.FileNames.GetLength(0) - added));
       }
@@ -200,7 +219,7 @@ namespace SpacesDUpload {
       Updater up = new Updater();
 
       await up.Create();
-            
+
       if (App.err.CheckIsError()) {
         CShowErrorIfNeeded("");
       } else {
@@ -241,7 +260,7 @@ namespace SpacesDUpload {
         return true;
       }
 
-      return false;      
+      return false;
     }
 
     private void VLock() {
@@ -267,12 +286,12 @@ namespace SpacesDUpload {
         string s = "Сообщение: " + Error.GetMessage(App.err.LastErrorCode);
 
         if (App.err.ExtMessage.Length > 1) s += "\nИнформация: " + App.err.ExtMessage;
-        
+
         if (App.DEV_MODE_ENABLED) {
           if (debugMessage.Length > 1) s += "\n\nDebug msg: " + debugMessage;
           if (App.err.Place.Length > 1) s += "\nAt: " + App.err.Place;
         }
-        
+
         VShowMessage("Ошибка приложения! (c: " + App.err.ErrCount + ")", s);
       }
 
@@ -284,40 +303,34 @@ namespace SpacesDUpload {
       VLockControl(sender);
 
       FormModal d = new FormModal("Авторизация", "Введите SID сессии:");
-
-      bool okFlag = false;
-
-      if (d.ShowDialog() == DialogResult.OK) {      
-        App.session = new Session();
+       
+      if (d.ShowDialog() == DialogResult.OK) {
         await App.session.Create(d.InputText);
-        
-        if (App.session.Valid) {
-          okFlag = true;
-        } else {
-          App.err.SetError(Error.Codes.INCORRECT_SESSION, this.ToString(), "Невалидный sid");
-        }
-        
-        if (okFlag) {
-          VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
-
-          List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
-          list.Add(new KeyValuePair<string, string>("0", "(кликни дважды для загрузки)"));
-          VUploadDirsSet(list);
-
-          VTabAccessChange(AppTabPageAuth, false);
-          VTabAccessChange(AppTabPageUploader, true);
-          VLockControl(GroupBoxSpacDirs);
-        }
-
-      } else {
-        App.err.SetError(Error.Codes.INCORRECT_SESSION, this.ToString(), "Неправильный формат");
+        VAfterAuth();
       }
 
       CShowErrorIfNeeded();
       VUnlockControl(sender);
       CUnlock();
     }
-    
+
+    private void VAfterAuth() {
+      if (!App.session.Valid) {
+        App.err.SetError(Error.Codes.INCORRECT_SESSION, this.ToString(), "Невалидный sid");
+        return;
+      }
+
+      VShowMessage("Авторизация", "Привет, " + App.session.UserName + "!");
+
+      List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
+      list.Add(new KeyValuePair<string, string>("0", "(кликни дважды для загрузки)"));
+      VUploadDirsSet(list);
+
+      VTabAccessChange(AppTabPageAuth, false);
+      VTabAccessChange(AppTabPageUploader, true);
+      VLockControl(GroupBoxSpacDirs);
+    }
+
     private void VUploadDirsSet(List<KeyValuePair<string, string>> dict) {
       ListViewDirs.Items.Clear();
 
@@ -325,7 +338,7 @@ namespace SpacesDUpload {
         ListViewDirs.Items.Add(new ListViewItem(new string[] { item.Key, item.Value }));
       }
     }
-  
+
     private async void CChangeFileDir(object sender, EventArgs e) {
       CLock();
       VLockControl(sender);
@@ -335,7 +348,7 @@ namespace SpacesDUpload {
       string dirID = ListViewDirs.SelectedItems[0].Text;
 
       dict = await MixxerAPI.GetMusicDirs(App.session.UserName, dirID);
-        
+
       dict.Insert(0, new KeyValuePair<string, string>("0", "< корневая папка >"));
 
       CShowErrorIfNeeded();
@@ -379,7 +392,7 @@ namespace SpacesDUpload {
         VUnlockControl(sender);
         return;
       }
-      
+
       string dirID = ListViewDirs.Items[ListViewDirs.SelectedIndices[0]].Text;
 
       VTabAccessChange(AppTabPageUploader, false);
@@ -395,7 +408,7 @@ namespace SpacesDUpload {
       VProgressBarCurrentUpdate(0, 0, 0);
       ProgressBarCurrent.Minimum = 0;
       ProgressBarCurrent.Maximum = 100;
-           
+
       var progressIndicatorTotal = new Progress<int>(VProgressBarTotalUpdate);
       VProgressBarTotalUpdate(0);
       ProgressBarTotal.Minimum = 0;
@@ -411,12 +424,13 @@ namespace SpacesDUpload {
         VShowMessage("Загрузка завершена", "Загрузка завершена!\nЕсли хотите загрузить ещё - перезапустите программу.");
 
       } catch (OperationCanceledException) {
+        VCurrentWorkLogUploadUpdate("Остановлено... (отмена пользователем)");
         VShowMessage("Загрузка завершена", "Операция отменена пользователем");
 
       } catch (Exception) {
         CShowErrorIfNeeded("Error at end load");
       }
-                
+
       VUnlockControl(sender);
       CUnlock();
     }
@@ -424,7 +438,7 @@ namespace SpacesDUpload {
     private void VProgressBarTaskBarSetValue(double current, double max) {
       TaskbarProgress.SetValue(App.winHandler, current, max);
     }
-  
+
     private void VProgressBarTaskBarSetState(TaskbarProgress.TaskbarStates state) {
       TaskbarProgress.SetState(App.winHandler, state);
     }
@@ -503,11 +517,11 @@ namespace SpacesDUpload {
             errorsCount++;
           }
           await Task.Delay(2500);
-          
+
         } catch (OperationCanceledException) {
           log.Report("Выполняется отмена операции...");
-          break; 
-       
+          break;
+
         } catch (Exception e) {
           log.Report("Ошибка при загрузке (" + e.Message + ") от (" + e.Source + ")");
           errorsCount++;
@@ -515,7 +529,7 @@ namespace SpacesDUpload {
       }
 
       if (errorsCount == MAX_ERR_COUNT) {
-        log.Report("Загрузка остановлена из-за большого количества ошибок...\n" + 
+        log.Report("Загрузка остановлена из-за большого количества ошибок...\n" +
                    "(результат: " + i + "/" + files.Count + ")");
       } else {
         log.Report("Загрузка завершена без ошибок");
@@ -539,7 +553,7 @@ namespace SpacesDUpload {
       LabelUploadedKB.Text = (current / 1024) + " / " + (total / 1024) + " kb";
     }
 
-    private void VCurrentWorkLogUploadUpdate(string value) {      
+    private void VCurrentWorkLogUploadUpdate(string value) {
       TextBoxUploadLog.AppendText("\r\n[" + DateTime.Now.ToString("HH:mm:ss") + "] " + value);
     }
 
@@ -552,8 +566,7 @@ namespace SpacesDUpload {
       LabelCurrentWork.Text = value;
     }
 
-    private async void ButtonDebug_Click(object sender, EventArgs ev) {
-      await Task.Delay(1);
+    private void ButtonDebug_Click(object sender, EventArgs ev) {
       // [debug your code here] //
     }
 
@@ -571,7 +584,7 @@ namespace SpacesDUpload {
       VLockControl(sender);
 
       DialogResult result = MessageBox.Show("Остановить загрузку?\nОстановка будет выполнена после загрузки текущего файла", "Отмена", MessageBoxButtons.YesNo);
-      
+
       if (result == DialogResult.Yes) {
         CCancelAction(sender, e);
       } else {
@@ -590,10 +603,67 @@ namespace SpacesDUpload {
     private void ButtonRestart_Click(object sender, EventArgs e) {
       Application.Restart();
     }
-  }
 
+    private void ButtonLoginFirefox_Click(object sender, EventArgs e) {
+      DialogResult result = MessageBox.Show("Начать поиск активных сессий?", "Требуется подтверждение", MessageBoxButtons.YesNo);
+
+      if (result == System.Windows.Forms.DialogResult.Yes) {
+        CAuthFirefox(sender, e);
+      }      
+    }
+
+    private async void CAuthFirefox(object sender, EventArgs e) {
+      if (!CLock()) return;
+      VLockControl(sender);
+
+      string browserPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Mozilla", "Firefox", "Profiles");
+
+      DirectoryInfo d = new DirectoryInfo(browserPath);
+
+      List<KeyValuePair<string, string>> accounts = new List<KeyValuePair<string, string>>();
+
+      foreach (DirectoryInfo item in d.GetDirectories()) {
+        string dbPath = Path.Combine(browserPath, item.Name, Path.GetFileName("cookies.sqlite"));
+        string dbQuery = @"SELECT `value` FROM `moz_cookies` WHERE `baseDomain` = ""spaces.ru"" AND `name` = ""sid""";
+
+        using (SQLiteConnection connection = new SQLiteConnection("Data Source=" + dbPath + "; Version=3;")) {
+          await connection.OpenAsync();
+
+          using (SQLiteCommand dbCommand = new SQLiteCommand(dbQuery, connection))
+          using (var dbReader = await dbCommand.ExecuteReaderAsync()) {
+            while (await dbReader.ReadAsync()) {
+              string sid = dbReader.GetString(0);
+              await App.session.Create(sid);
+              if (App.session.Valid) {
+                accounts.Add(new KeyValuePair<string, string>(App.session.UserName, sid));
+              }
+            }
+          }
+        }
+      }
+
+      App.session.ResetSessionData();
+
+      if (accounts.Count > 0) {
+        FormAccounts form = new FormAccounts(accounts);
+        if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK) {
+          await App.session.Create(form.GetSelectedSID());
+          VAfterAuth();
+        }
+      } else {
+        App.err.SetError(Error.Codes.SESSION_PARSER_NOT_FOUND, "Firefox parser", "Не найдено активных сессий");
+      }
+
+      CShowErrorIfNeeded();
+      VUnlockControl(sender);
+      CUnlock();
+    }
+  }
+     
   public static class App {
-    public static readonly bool DEV_MODE_ENABLED = true;
+    // Set true to unlock all GUI
+    public static readonly bool DEV_MODE_ENABLED = false;
 
     // Const
     public static class Const {
@@ -602,8 +672,10 @@ namespace SpacesDUpload {
       public static readonly string AUTHOR = "DJ_miXxXer";
       public static readonly string AUTHOR_URL = "http://spaces.ru/mysite/?name=DJ_miXxXer&_ref=dmapp";
       public static readonly string UA = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:37.0) Gecko/20100101 Firefox/37.0 MixxerUploader/0." + VERSION;
+      public static readonly string SPACES = "http://spaces.ru";
 
       public const int VERSION = 3;
+      public const int MIN_NET_VERSION = 378389;
     }
 
     public static IntPtr winHandler = Process.GetCurrentProcess().MainWindowHandle;   
@@ -737,7 +809,8 @@ namespace SpacesDUpload {
       }
     }
 
-    private void _ResetSessionData() {
+    public void ResetSessionData() {
+      App.net.ClearCookies();
       sid = "";
       userID = "";
       userName = "";
@@ -755,7 +828,7 @@ namespace SpacesDUpload {
     }
 
     public async Task Create(string sid) {
-      _ResetSessionData();
+      ResetSessionData();
 
       if (_CheckInputSID(sid)) {
         this.sid = sid;
@@ -764,7 +837,7 @@ namespace SpacesDUpload {
           await App.net.Get("http://spaces.ru/settings/?sid=" + sid);
 
           string temp = App.net.GetCookieValueByName("user_id");
-          if (temp != "") {
+          if (temp != string.Empty) {
             
             userID = temp;
             valid = true;
@@ -786,7 +859,8 @@ namespace SpacesDUpload {
       INCORRECT_SESSION = 3,
       WRONG_GUI_OP = 4,
       ERROR_TIMEOUT = 5,
-      NETWORK_ERROR = 6
+      NETWORK_ERROR = 6,
+      SESSION_PARSER_NOT_FOUND = 7
     }
 
     public Error() {
@@ -882,13 +956,16 @@ namespace SpacesDUpload {
           return "Ошибка сети";
         }
 
+        case Codes.SESSION_PARSER_NOT_FOUND: {
+          return "Поиск завершился неудачей";
+        }
+
         default: {
           return "Неизвестная ошибка (код: " + code + ")";
         }
       }
     }    
   }
-
 
   public class Networker {
     // HTTP libs vars
@@ -914,6 +991,15 @@ namespace SpacesDUpload {
     public int LastCodeAnswer {
       get {
         return lastCodeAnswer;
+      }
+    }
+
+    public void ClearCookies() {
+      if (cookies == null) return;
+
+      // how get ALL cookies? :)
+      foreach (Cookie co in cookies.GetCookies(new Uri(App.Const.SPACES))) {
+        co.Expired = true;
       }
     }
    
