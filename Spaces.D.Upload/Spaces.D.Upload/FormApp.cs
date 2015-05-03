@@ -433,7 +433,7 @@ namespace SpacesDUpload {
       } catch (Exception) {
         CShowErrorIfNeeded("Error at end load");
       }
-
+      
       VUnlockControl(sender);
       CUnlock();
     }
@@ -488,7 +488,7 @@ namespace SpacesDUpload {
             errorsCount++;
             continue;
           }
-
+          
           log.Report("Ссылка для файла получена...");
 
           List<KeyValuePair<string, string>> keys = new List<KeyValuePair<string, string>>();
