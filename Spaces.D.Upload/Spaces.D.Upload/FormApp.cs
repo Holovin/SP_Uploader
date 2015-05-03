@@ -1109,7 +1109,8 @@ namespace SpacesDUpload {
           }
 
           FileInfo f = new FileInfo(fileData.Value);
-          contentData.Add(new StreamContent(File.Open(fileData.Value, FileMode.Open)), fileData.Key, f.Name);
+          
+          contentData.Add(new StreamContent(File.OpenRead(fileData.Value)), fileData.Key, f.Name);
 
           using (var response = await client.PostAsync(url, contentData)) {            
             using (var stream = new StreamReader(await response.Content.ReadAsStreamAsync())) {
