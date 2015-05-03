@@ -244,6 +244,8 @@ namespace SpacesDUpload {
     }
 
     private void VGUIInit() {
+      this.Text = this.VGetAppLabel();
+
       this.LabelAbout.Text = App.Const.NAME;
 
       if (App.DEV_MODE_ENABLED) ButtonDebug.Visible = true;
@@ -420,6 +422,7 @@ namespace SpacesDUpload {
       try {
         await UploadMusic(files, progressIndicatorTotal, progressIndicatorCurrent,
           progressIndicatorCurrentTask, progressIndicatorCurrentLog, dirID, App.cts.Token);
+        VLockControl(ButtonCancel);
 
         VShowMessage("Загрузка завершена", "Загрузка завершена!\nЕсли хотите загрузить ещё - перезапустите программу.");
 
@@ -430,7 +433,7 @@ namespace SpacesDUpload {
       } catch (Exception) {
         CShowErrorIfNeeded("Error at end load");
       }
-
+      
       VUnlockControl(sender);
       CUnlock();
     }
@@ -485,7 +488,7 @@ namespace SpacesDUpload {
             errorsCount++;
             continue;
           }
-
+          
           log.Report("Ссылка для файла получена...");
 
           List<KeyValuePair<string, string>> keys = new List<KeyValuePair<string, string>>();
@@ -523,7 +526,7 @@ namespace SpacesDUpload {
           break;
 
         } catch (Exception e) {
-          log.Report("Ошибка при загрузке (" + e.Message + ") от (" + e.Source + ")");
+          log.Report("Ошибка при загрузке (" + e.Message + ") от (" + e.Source + ")" + e.HResult);
           errorsCount++;
         }
       }
@@ -674,7 +677,7 @@ namespace SpacesDUpload {
       public static readonly string UA = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:37.0) Gecko/20100101 Firefox/37.0 MixxerUploader/0." + VERSION;
       public static readonly string SPACES = "http://spaces.ru";
 
-      public const int VERSION = 3;
+      public const int VERSION = 4;
       public const int MIN_NET_VERSION = 378389;
     }
 
@@ -1106,7 +1109,8 @@ namespace SpacesDUpload {
           }
 
           FileInfo f = new FileInfo(fileData.Value);
-          contentData.Add(new StreamContent(File.Open(fileData.Value, FileMode.Open)), fileData.Key, f.Name);
+          
+          contentData.Add(new StreamContent(File.OpenRead(fileData.Value)), fileData.Key, f.Name);
 
           using (var response = await client.PostAsync(url, contentData)) {            
             using (var stream = new StreamReader(await response.Content.ReadAsStreamAsync())) {
