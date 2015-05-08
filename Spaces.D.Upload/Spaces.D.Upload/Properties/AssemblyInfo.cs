@@ -5,13 +5,13 @@ using System.Runtime.InteropServices;
 // Управление общими сведениями о сборке осуществляется с помощью 
 // набора атрибутов. Измените значения этих атрибутов, чтобы изменить сведения,
 // связанные со сборкой.
-[assembly: AssemblyTitle("Spaces.D.Upload")]
-[assembly: AssemblyDescription("Spaces.D.Upload")]
+[assembly: AssemblyTitle("D.MusicUpload")]
+[assembly: AssemblyDescription("D.MusicUpload")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("DJ_miXxXer")]
-[assembly: AssemblyProduct("Spaces.D.Upload")]
+[assembly: AssemblyCompany("Alex Holovin")]
+[assembly: AssemblyProduct("D.MusicUpload")]
 [assembly: AssemblyCopyright("Copyright © 2015")]
-[assembly: AssemblyTrademark("DJ_miXxXer")]
+[assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
 // Параметр ComVisible со значением FALSE делает типы в сборке невидимыми 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // Можно задать все значения или принять номера сборки и редакции по умолчанию 
 // используя "*", как показано ниже:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
+[assembly: AssemblyVersion("0.4.0.1")]
+[assembly: AssemblyFileVersion("0.4.0.1")]
