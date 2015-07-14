@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -107,7 +106,7 @@ namespace SpacesDUpload {
         await Task.Factory.StartNew(() => {
           foreach (var item in modal.FileNames) {
             f = new FileInfo(item);
-            if (f.Length >= App.Const.MaxFileSize) continue;
+            if (f.Length >= App.MaxFileSize) continue;
             added++;
             itemCache.Add(item);
           }
@@ -116,7 +115,7 @@ namespace SpacesDUpload {
         ListBoxFiles.Items.AddRange(itemCache.ToArray());
 
         VUpdateFilesInfo();
-        VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (modal.FileNames.GetLength(0) - added));
+        VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>" + App.MaxFileSizeStr + "!): " + (modal.FileNames.GetLength(0) - added));
       }
 
       VUnlockControl(sender);
@@ -142,9 +141,9 @@ namespace SpacesDUpload {
         await Task.Factory.StartNew(() => {
           files = Directory.GetFiles(modal.SelectedPath, "*.mp3", SearchOption.AllDirectories);
 
-          foreach (string item in files) {
+          foreach (var item in files) {
             f = new FileInfo(item);
-            if (f.Length >= App.Const.MaxFileSize) continue;
+            if (f.Length >= App.MaxFileSize) continue;
             added++;
             itemCache.Add(item);
           }
@@ -154,7 +153,8 @@ namespace SpacesDUpload {
         ListBoxFiles.Items.AddRange(itemCache.ToArray());
 
         VUpdateFilesInfo();
-        VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>60мб!): " + (files.Length - added));
+        VShowMessage("Файлы добавлены", "Добавлено файлов: " + added + "\nПропущено (>" + App.MaxFileSizeStr 
+          + "!): " + (files.Length - added));
       }
       CUnlock();
     }
@@ -531,7 +531,7 @@ namespace SpacesDUpload {
     }
 
     private void VProgressBarCurrentUpdate(HttpProgressEventArgs value) {
-      // Dont care about long > int convert, because we have 60MB limit upload
+      // Dont care about long > int convert, because we have 100MB limit upload
       if (value.TotalBytes != null)
         VProgressBarCurrentUpdate(value.ProgressPercentage, (int)value.BytesTransferred, (int)value.TotalBytes);
     }
@@ -651,7 +651,6 @@ namespace SpacesDUpload {
 
     // Const
     public static class Const {
-      public const int MaxFileSize = 62914560;
       public static readonly string Name = "D.MusicUploader";
       public static readonly string Author = "DJ_miXxXer";
       public static readonly string AuthorUrl = "http://spaces.ru/mysite/?name=DJ_miXxXer&_ref=dmapp";
@@ -667,6 +666,12 @@ namespace SpacesDUpload {
     public static Networker Net;
     public static Error Err;
     public static CancellationTokenSource Cts = new CancellationTokenSource();
+
+    public static int MaxFileSize;
+
+    public static string MaxFileSizeStr {
+      get { return MaxFileSize/1048576 + " мб"; }
+    }
 
     private static bool _workFlag;
     public static bool BeginWork() {
@@ -696,12 +701,40 @@ namespace SpacesDUpload {
       return App.Net.GetValueByParam("name");
     }
 
-    // 6 - music
-    public static async Task<string> GetUploadUrl(string sid, string type = "6") {
+    public static async Task<string> GetMaxUploadSize(string sid) {
       var postData = new List<KeyValuePair<string, string>> {
         new KeyValuePair<string, string>("Type", "6"),
         new KeyValuePair<string, string>("method", "getUploadInfo"),
-        new KeyValuePair<string, string>("url", DateTime.UtcNow.ToString(CultureInfo.InvariantCulture))
+      };
+
+      try {
+        await App.Net.Post("http://spaces.ru/api/files/", postData);
+      } catch {
+        App.Err.SetError(Error.Codes.NetworkError, "API.GetUploadURL.Post", "Нет ответа от spaces.ru");
+        throw;
+      }
+
+      var maxFileSize = string.Empty;
+
+      try {
+        var o = JObject.Parse(App.Net.Answer);
+        maxFileSize = o["maxSize"].ToString();
+      } catch {
+        App.Err.SetError(Error.Codes.WrongParseData, "API.GetUploadURL.Parse", "Некорректные данные");
+      }
+
+      if (maxFileSize == string.Empty) {
+        App.Err.SetError(Error.Codes.WrongParseData, "API.GetUploadURL.Parse", "Некорректные данные");
+      }
+
+      return maxFileSize;
+    }
+
+    // 6 - music
+    public static async Task<string> GetUploadUrl(string sid, string type = "6") {
+      var postData = new List<KeyValuePair<string, string>> {
+        new KeyValuePair<string, string>("Type", type),
+        new KeyValuePair<string, string>("method", "getUploadInfo"),
       };
 
       try {
@@ -713,18 +746,22 @@ namespace SpacesDUpload {
       }
 
       var answer = string.Empty;
+      var maxFileSize = string.Empty;
 
       try {
         var o = JObject.Parse(App.Net.Answer);
         answer = o["url"].ToString();
+        maxFileSize = o["maxSize"].ToString();
       } catch {
         App.Err.SetError(Error.Codes.WrongParseData, "API.GetUploadURL.Parse", "Некорректные данные");
       }
 
-      if (answer == string.Empty) {
+      if (answer == string.Empty || maxFileSize == string.Empty) {
         App.Err.SetError(Error.Codes.WrongParseData, "API.GetUploadURL.Parse", "Некорректные данные");
       }
-                
+
+      App.MaxFileSize = int.Parse(maxFileSize)*1048576;
+      Debug.WriteLine(App.MaxFileSize);          
       return answer;
     }
 
@@ -796,6 +833,7 @@ namespace SpacesDUpload {
             Valid = true;
 
             UserName = await MixxerApi.GetUserNameById(UserId);
+            App.MaxFileSize = int.Parse(await MixxerApi.GetMaxUploadSize(sid)) * 1048576;
           }
         } catch (Exception e) {
           App.Err.SetError(Error.Codes.TryCommonFail, ToString(), "Session __constr err [e: " + e.Message + "]");
