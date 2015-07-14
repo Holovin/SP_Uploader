@@ -49,6 +49,7 @@
       this.ListView.TabIndex = 1;
       this.ListView.UseCompatibleStateImageBehavior = false;
       this.ListView.View = System.Windows.Forms.View.Details;
+      this.ListView.SelectedIndexChanged += new System.EventHandler(this.ListView_SelectedIndexChanged);
       this.ListView.DoubleClick += new System.EventHandler(this.ListView_DoubleClick);
       this.ListView.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ListView_KeyDown);
       // 

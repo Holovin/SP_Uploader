@@ -1,5 +1,5 @@
 ﻿namespace SpacesDUpload {
-  partial class FormModal {
+  sealed partial class FormModal {
     /// <summary>
     /// Required designer variable.
     /// </summary>

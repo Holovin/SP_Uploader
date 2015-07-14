@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace SpacesDUpload {
+  [SuppressMessage("ReSharper", "InconsistentNaming")]
   public static class TaskbarProgress {
     public enum TaskbarStates {
       NoProgress = 0,
@@ -44,21 +46,21 @@ namespace SpacesDUpload {
     private class TaskbarInstance {
     }
 
-    private static ITaskbarList3 taskbarInstance = (ITaskbarList3)new TaskbarInstance();
-    private static bool taskbarSupported = Environment.OSVersion.Version >= new Version(6, 1);
+    // ReSharper disable once SuspiciousTypeConversion.Global
+    private static readonly ITaskbarList3 _taskbarInstance = (ITaskbarList3)new TaskbarInstance();
+    private static readonly bool _taskbarSupported = Environment.OSVersion.Version >= new Version(6, 1);
 
     public static void SetState(IntPtr windowHandle, TaskbarStates taskbarState) {
-      if (taskbarSupported) taskbarInstance.SetProgressState(windowHandle, taskbarState);
+      if (_taskbarSupported) _taskbarInstance.SetProgressState(windowHandle, taskbarState);
     }
 
     public static void SetValue(IntPtr windowHandle, double progressValue, double progressMax) {
-      if (taskbarSupported) taskbarInstance.SetProgressValue(windowHandle, (ulong)progressValue, (ulong)progressMax);
+      if (_taskbarSupported) _taskbarInstance.SetProgressValue(windowHandle, (ulong)progressValue, (ulong)progressMax);
     }
     public static void Reset(IntPtr windowHandle) {
-      if (taskbarSupported) {
-        taskbarInstance.SetProgressState(windowHandle, TaskbarStates.NoProgress);
-        taskbarInstance.SetProgressValue(windowHandle, (ulong)0, (ulong)0);
-      }
+      if (!_taskbarSupported) return;
+      _taskbarInstance.SetProgressState(windowHandle, TaskbarStates.NoProgress);
+      _taskbarInstance.SetProgressValue(windowHandle, 0, 0);
     }
   }
 }
