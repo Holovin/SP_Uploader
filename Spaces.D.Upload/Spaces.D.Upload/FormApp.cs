@@ -423,15 +423,15 @@ namespace SpacesDUpload {
       CUnlock();
     }
 
-    private void VProgressBarTaskBarSetValue(double current, double max) {
+    private static void VProgressBarTaskBarSetValue(double current, double max) {
       TaskbarProgress.SetValue(App.WinHandler, current, max);
     }
 
-    private void VProgressBarTaskBarSetState(TaskbarProgress.TaskbarStates state) {
+    private static void VProgressBarTaskBarSetState(TaskbarProgress.TaskbarStates state) {
       TaskbarProgress.SetState(App.WinHandler, state);
     }
 
-    private async Task UploadMusic(List<string> files, IProgress<int> progressTotal,
+    private static async Task UploadMusic(IReadOnlyList<string> files, IProgress<int> progressTotal,
       IProgress<HttpProgressEventArgs> progressCurrent, IProgress<string> currentWork, IProgress<string> log, string dirId,
       CancellationToken ct) {
 
@@ -491,7 +491,7 @@ namespace SpacesDUpload {
           currentWork.Report("Загружаем " + f.Name + "...");
           log.Report("Начало загрузки...");
 
-          Error.Codes opCode = await App.Net.PostMultipart(url, keys, new KeyValuePair<string, string>("myFile", f.ToString()));
+          var opCode = await App.Net.PostMultipart(url, keys, new KeyValuePair<string, string>("myFile", f.ToString()));
 
           log.Report("Загрузка заврешена (" + App.Net.LastCodeAnswer + ")");
           log.Report("Результат: " + Error.GetMessage(opCode));
