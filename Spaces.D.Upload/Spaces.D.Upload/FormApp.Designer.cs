@@ -350,6 +350,7 @@
       this.LabelTotalWork.Size = new System.Drawing.Size(596, 22);
       this.LabelTotalWork.TabIndex = 4;
       this.LabelTotalWork.Text = "Debug";
+      this.LabelTotalWork.UseMnemonic = false;
       // 
       // ProgressBarTotal
       // 
@@ -365,6 +366,7 @@
       this.LabelCurrentWork.Size = new System.Drawing.Size(611, 23);
       this.LabelCurrentWork.TabIndex = 1;
       this.LabelCurrentWork.Text = "Debug";
+      this.LabelCurrentWork.UseMnemonic = false;
       // 
       // ProgressBarCurrent
       // 
